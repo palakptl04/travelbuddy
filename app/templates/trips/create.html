@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Create Trip{% endblock %}
+
+{% block extra_styles %}
+  .profile-page {
+    background: var(--bg);
+    min-height: calc(100vh - 64px);
+    padding: 40px 48px 64px;
+  }
+  .profile-inner { max-width: 720px; margin: 0 auto; }
+
+  .page-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
+  }
+  .page-title { font-size: 22px; font-weight: 900; letter-spacing: -0.02em; color: var(--text); }
+  .btn-back {
+    font-size: 13px; font-weight: 600; color: var(--text-muted);
+    display: inline-flex; align-items: center; gap: 5px; transition: color 0.15s;
+  }
+  .btn-back:hover { color: var(--text); }
+
+  .edit-card { background: var(--white); border: 1px solid var(--border); border-radius: 18px; overflow: hidden; }
+  .edit-section { padding: 28px 32px; border-bottom: 1px solid var(--border); }
+  .edit-section:last-child { border-bottom: none; }
+  .edit-section-title { font-size: 13px; font-weight: 800; color: var(--text); margin-bottom: 20px; display: flex; align-items: center; gap: 7px; }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-group { margin-bottom: 18px; }
+  .form-group:last-child { margin-bottom: 0; }
+  .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .form-group input, .form-group textarea, .form-group select {
+    width: 100%; padding: 11px 14px; border: 1.5px solid var(--border); border-radius: 10px;
+    font-size: 14px; font-family: inherit; color: var(--text); background: var(--white);
+    transition: border-color 0.15s, box-shadow 0.15s; outline: none;
+  }
+  .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+    border-color: var(--green); box-shadow: 0 0 0 3px rgba(8,145,178,0.10);
+  }
+  .form-group input.input-error, .form-group textarea.input-error { border-color: #f87171; }
+  .form-group textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
+  .field-error { font-size: 12px; color: #dc2626; margin-top: 5px; display: flex; align-items: center; gap: 4px; }
+  .field-error::before { content: '⚠'; font-size: 11px; }
+
+  .edit-actions {
+    padding: 20px 32px; display: flex; align-items: center; gap: 12px;
+    justify-content: flex-end; background: var(--bg); border-top: 1px solid var(--border);
+  }
+  .btn-save {
+    font-size: 14px; font-weight: 700; color: white; padding: 11px 28px; border-radius: 10px;
+    background: var(--green); border: none; cursor: pointer; font-family: inherit; transition: background 0.15s;
+  }
+  .btn-save:hover { background: var(--green-dark); }
+  .btn-cancel {
+    font-size: 14px; font-weight: 600; color: var(--text-muted); padding: 11px 20px; border-radius: 10px;
+    border: 1.5px solid var(--border); background: var(--white); cursor: pointer; font-family: inherit;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .btn-cancel:hover { color: var(--text); border-color: #9ca3af; }
+
+  @media (max-width: 640px) {
+    .profile-page { padding: 24px 20px 48px; }
+    .edit-section { padding: 22px 20px; }
+    .edit-actions { padding: 16px 20px; }
+    .form-row { grid-template-columns: 1fr; }
+  }
+{% endblock %}
+
+{% block content %}
+<div class="profile-page">
+  <div class="profile-inner">
+
+    <div class="page-header">
+      <h1 class="page-title">Plan a New Trip</h1>
+      <a href="{{ url_for('trips.index') }}" class="btn-back">← Back to Trips</a>
+    </div>
+
+    <form method="POST" action="{{ url_for('trips.create') }}" novalidate>
+      {{ form.hidden_tag() }}
+
+      <div class="edit-card">
+        <div class="edit-section">
+          <div class="edit-section-title">🗺️ Trip Details</div>
+
+          <div class="form-group">
+            {{ form.title.label }}
+            {{ form.title(placeholder="e.g. Backpacking through Himachal", class="input-error" if form.title.errors else "") }}
+            {% for error in form.title.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+
+          <div class="form-row">
+          <div class="form-group">
+            {{ form.departure_city.label }}
+            {{ form.departure_city(class="input-error" if form.departure_city.errors else "") }}
+            {% for error in form.departure_city.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+
+          <div class="form-group">
+            {{ form.destination.label }}
+            {{ form.destination(class="input-error" if form.destination.errors else "") }}
+            {% for error in form.destination.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+          </div>
+
+          <div class="form-group">
+            {{ form.description.label }}
+            {{ form.description(placeholder="Tell potential buddies what this trip is about...", class="input-error" if form.description.errors else "") }}
+            {% for error in form.description.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              {{ form.start_date.label }}
+              {{ form.start_date(class="input-error" if form.start_date.errors else "") }}
+              {% for error in form.start_date.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="form-group">
+              {{ form.end_date.label }}
+              {{ form.end_date(class="input-error" if form.end_date.errors else "") }}
+              {% for error in form.end_date.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <div class="edit-section">
+          <div class="edit-section-title">💰 Budget &amp; Group Size</div>
+          <div class="form-row">
+            <div class="form-group">
+              {{ form.budget_min.label }}
+              {{ form.budget_min(placeholder="e.g. 5000", class="input-error" if form.budget_min.errors else "") }}
+              {% for error in form.budget_min.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="form-group">
+              {{ form.budget_max.label }}
+              {{ form.budget_max(placeholder="e.g. 15000", class="input-error" if form.budget_max.errors else "") }}
+              {% for error in form.budget_max.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+            </div>
+          </div>
+          <div class="form-group">
+            {{ form.max_members.label }}
+            {{ form.max_members(placeholder="e.g. 4", class="input-error" if form.max_members.errors else "") }}
+            {% for error in form.max_members.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+        </div>
+
+        <div class="edit-actions">
+          <a href="{{ url_for('trips.index') }}" class="btn-cancel">Cancel</a>
+          {{ form.submit(class="btn-save") }}
+        </div>
+      </div>
+    </form>
+
+  </div>
+</div>
+{% endblock %}

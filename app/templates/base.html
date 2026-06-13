@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>{% block title %}TravelBuddy{% endblock %} — Find Your Perfect Travel Companion</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green: #0891B2;
+    --green-light: #E0F7FA;
+    --green-dark: #0369A1;
+    --text: #111827;
+    --text-muted: #6B7280;
+    --border: #E5E7EB;
+    --white: #ffffff;
+    --bg: #F0FBFF;
+    --radius: 12px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--white);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  a { text-decoration: none; color: inherit; }
+
+  /* NAVBAR */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    height: 64px;
+    display: flex;
+    align-items: center;
+    padding: 0 48px;
+    gap: 8px;
+  }
+
+  .logo {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--green);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: 24px;
+  }
+
+  .logo-icon {
+    width: 28px;
+    height: 28px;
+    background: var(--green);
+    border-radius: 50% 50% 50% 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .logo-icon::after {
+    content: '';
+    width: 8px;
+    height: 8px;
+    background: white;
+    border-radius: 50%;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 4px;
+    list-style: none;
+    flex: 1;
+  }
+
+  .nav-links a {
+    font-size: 14px;
+    color: var(--text-muted);
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 8px;
+    transition: color 0.15s, background 0.15s;
+  }
+
+  .nav-links a:hover { color: var(--text); background: var(--bg); }
+  .nav-links a.active { color: var(--green); background: var(--green-light); }
+
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+  }
+
+  .btn-login {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    padding: 8px 18px;
+    border-radius: 9px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+  }
+  .btn-login:hover { border-color: var(--green); color: var(--green); background: var(--green-light); }
+
+  .btn-cta-nav {
+    font-size: 14px;
+    font-weight: 700;
+    color: white;
+    padding: 9px 20px;
+    border-radius: 9px;
+    background: var(--green);
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+    display: inline-block;
+  }
+  .btn-cta-nav:hover { background: var(--green-dark); }
+
+  /* User avatar pill */
+  .nav-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .nav-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--green);
+    color: white;
+    font-size: 12px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .btn-logout {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: 8px 14px;
+    border-radius: 9px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .btn-logout:hover { border-color: #f87171; color: #dc2626; }
+
+  /* FLASH MESSAGES */
+  .flash-container {
+    padding: 0 48px;
+  }
+
+  .flash {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    margin-top: 14px;
+  }
+
+  .flash-success {
+    background: #ecfdf5;
+    border: 1px solid #6ee7b7;
+    color: #065f46;
+  }
+
+  .flash-error {
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    color: #991b1b;
+  }
+
+  .flash-icon { font-size: 16px; }
+
+  /* FOOTER */
+  footer {
+    background: #111827;
+    color: rgba(255,255,255,0.65);
+    padding: 60px 48px 36px;
+  }
+
+  .footer-inner { max-width: 1080px; margin: 0 auto; }
+
+  .footer-top {
+    display: flex;
+    padding-bottom: 32px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    margin-bottom: 24px;
+  }
+
+  .footer-brand .footer-logo {
+    font-size: 20px;
+    font-weight: 800;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .footer-logo-icon {
+    width: 24px;
+    height: 24px;
+    background: var(--green);
+    border-radius: 50% 50% 50% 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .footer-logo-icon::after {
+    content: '';
+    width: 7px;
+    height: 7px;
+    background: white;
+    border-radius: 50%;
+  }
+
+  .footer-brand p {
+    font-size: 13px;
+    color: rgba(255,255,255,0.45);
+    line-height: 1.65;
+    max-width: 240px;
+  }
+
+  .footer-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .footer-copy { font-size: 12px; color: rgba(255,255,255,0.25); }
+
+  .footer-tagline-bottom {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--green);
+  }
+
+  /* AUTH PAGES */
+  .auth-page {
+    min-height: calc(100vh - 64px);
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 20px;
+  }
+
+  .auth-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 44px 48px;
+    width: 100%;
+    max-width: 460px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.05);
+  }
+
+  .auth-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--green);
+    margin-bottom: 28px;
+  }
+
+  .auth-logo-icon {
+    width: 26px;
+    height: 26px;
+    background: var(--green);
+    border-radius: 50% 50% 50% 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .auth-logo-icon::after {
+    content: '';
+    width: 7px;
+    height: 7px;
+    background: white;
+    border-radius: 50%;
+  }
+
+  .auth-heading {
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .auth-subheading {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 32px;
+    line-height: 1.55;
+  }
+
+  .form-group {
+    margin-bottom: 18px;
+  }
+
+  .form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .form-group input {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--white);
+    transition: border-color 0.15s, box-shadow 0.15s;
+    outline: none;
+  }
+
+  .form-group input:focus {
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.12);
+  }
+
+  .form-group input.input-error {
+    border-color: #f87171;
+  }
+
+  .field-error {
+    font-size: 12px;
+    color: #dc2626;
+    margin-top: 5px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .field-error::before { content: '⚠'; font-size: 11px; }
+
+  .btn-submit {
+    width: 100%;
+    padding: 13px;
+    background: var(--green);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-top: 8px;
+  }
+
+  .btn-submit:hover { background: var(--green-dark); }
+
+  .auth-switch {
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 22px;
+  }
+
+  .auth-switch a {
+    color: var(--green);
+    font-weight: 600;
+  }
+
+  .auth-switch a:hover { text-decoration: underline; }
+
+  .auth-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 24px 0;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    .footer-top { display: grid; grid-template-columns: 1fr 1fr; }
+  }
+
+  @media (max-width: 640px) {
+    nav { padding: 0 20px; }
+    .nav-links { display: none; }
+    footer { padding: 48px 20px 28px; }
+    .flash-container { padding: 0 20px; }
+    .footer-top { grid-template-columns: 1fr; gap: 32px; }
+    .footer-bottom { flex-direction: column; gap: 8px; text-align: center; }
+    .btn-login { display: none; }
+    .auth-card { padding: 32px 24px; }
+  }
+
+  {% block extra_styles %}{% endblock %}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="{{ url_for('main.home') }}" class="logo">
+    <div class="logo-icon"></div>
+    TravelBuddy
+  </a>
+
+  {% if current_user.is_authenticated %}
+    <ul class="nav-links">
+      <li><a href="{{ url_for('dashboard.index') }}" {% if request.endpoint == 'dashboard.index' %}class="active"{% endif %}>Dashboard</a></li>
+      <li><a href="{{ url_for('trips.index') }}" {% if request.endpoint and request.endpoint.startswith('trips.') %}class="active"{% endif %}>Trips</a></li>
+      
+      <li><a href="#" {% if request.endpoint == 'main.expenses' %}class="active"{% endif %}>Expenses</a></li>
+    </ul>
+    <div class="nav-right">
+      <div class="nav-user">
+        <div class="nav-avatar">{{ current_user.name[0].upper() }}</div>
+        <a href="{{ url_for('profile.view') }}" style="color:inherit;">{{ current_user.name.split()[0] }}</a>
+      </div>
+      <a href="{{ url_for('auth.logout') }}" class="btn-logout">Log out</a>
+    </div>
+  {% else %}
+    <ul class="nav-links">
+      <li><a href="{{ url_for('main.home') }}">Home</a></li>
+    </ul>
+    <div class="nav-right">
+      <a href="{{ url_for('auth.login') }}" class="btn-login">Log in</a>
+      <a href="{{ url_for('auth.register') }}" class="btn-cta-nav">Get Started</a>
+    </div>
+  {% endif %}
+</nav>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-container">
+      {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">
+          <span class="flash-icon">{% if category == 'success' %}✓{% else %}✕{% endif %}</span>
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+{% block content %}{% endblock %}
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <div class="footer-logo">
+          <div class="footer-logo-icon"></div>
+          TravelBuddy
+        </div>
+        <p>Find like-minded companions, plan trips together, and share expenses — automatically. No spreadsheets. No awkward IOUs.</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p class="footer-copy">© 2026 TravelBuddy. All rights reserved.</p>
+      <p class="footer-tagline-bottom">Split costs, not adventures.</p>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

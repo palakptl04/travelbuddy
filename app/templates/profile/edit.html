@@ -1,0 +1,390 @@
+{% extends "base.html" %}
+{% block title %}Edit Profile{% endblock %}
+
+{% block extra_styles %}
+  .profile-page {
+    background: var(--bg);
+    min-height: calc(100vh - 64px);
+    padding: 40px 48px 64px;
+  }
+
+  .profile-inner {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .page-title {
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  .btn-back {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: color 0.15s;
+  }
+  .btn-back:hover { color: var(--text); }
+
+  /* FORM CARD */
+  .edit-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    overflow: hidden;
+  }
+
+  .edit-section {
+    padding: 28px 32px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .edit-section:last-child { border-bottom: none; }
+
+  .edit-section-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  /* FORM ELEMENTS */
+  .form-group { margin-bottom: 18px; }
+  .form-group:last-child { margin-bottom: 0; }
+
+  .form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .form-group input,
+  .form-group textarea,
+  .form-group select {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--white);
+    transition: border-color 0.15s, box-shadow 0.15s;
+    outline: none;
+  }
+
+  .form-group input:focus,
+  .form-group textarea:focus,
+  .form-group select:focus {
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px rgba(8,145,178,0.10);
+  }
+
+  .form-group input.input-error,
+  .form-group textarea.input-error {
+    border-color: #f87171;
+  }
+
+  .form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+    line-height: 1.6;
+  }
+
+  .char-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    text-align: right;
+  }
+
+  .field-error {
+    font-size: 12px;
+    color: #dc2626;
+    margin-top: 5px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .field-error::before { content: '⚠'; font-size: 11px; }
+
+  /* STYLE SELECT CARDS */
+  .style-options {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .style-option { position: relative; }
+
+  .style-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .style-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border: 1.5px solid var(--border);
+    border-radius: 11px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .style-option input[type="radio"]:checked + .style-label {
+    border-color: var(--green);
+    background: var(--green-light);
+    color: var(--green-dark);
+  }
+
+  .style-label:hover { border-color: var(--green); }
+
+  .style-icon { font-size: 18px; }
+
+  /* INTEREST CHECKBOXES */
+  .interest-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .interest-option { position: relative; }
+
+  .interest-option input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .interest-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: 1.5px solid var(--border);
+    border-radius: 100px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+    user-select: none;
+  }
+
+  .interest-option input[type="checkbox"]:checked + .interest-label {
+    border-color: var(--green);
+    background: var(--green);
+    color: white;
+  }
+
+  .interest-label:hover { border-color: var(--green); }
+
+  .interest-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 10px;
+  }
+
+  /* ACTIONS */
+  .edit-actions {
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: flex-end;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+  }
+
+  .btn-save {
+    font-size: 14px;
+    font-weight: 700;
+    color: white;
+    padding: 11px 28px;
+    border-radius: 10px;
+    background: var(--green);
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+  }
+  .btn-save:hover { background: var(--green-dark); }
+
+  .btn-cancel {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: 11px 20px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: var(--white);
+    cursor: pointer;
+    font-family: inherit;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .btn-cancel:hover { color: var(--text); border-color: #9ca3af; }
+
+  @media (max-width: 640px) {
+    .profile-page { padding: 24px 20px 48px; }
+    .edit-section { padding: 22px 20px; }
+    .edit-actions { padding: 16px 20px; }
+    .style-options { grid-template-columns: 1fr 1fr; }
+  }
+{% endblock %}
+
+{% block content %}
+<div class="profile-page">
+  <div class="profile-inner">
+
+    <div class="page-header">
+      <h1 class="page-title">Edit Profile</h1>
+      <a href="{{ url_for('profile.view') }}" class="btn-back">← Back to Profile</a>
+    </div>
+
+    <form method="POST" action="{{ url_for('profile.edit') }}" novalidate id="profileForm">
+      {{ form.hidden_tag() }}
+
+      <div class="edit-card">
+
+        <!-- BASIC INFO -->
+        <div class="edit-section">
+          <div class="edit-section-title">👤 Basic Info</div>
+
+          <div class="form-group">
+            {{ form.name.label }}
+            {{ form.name(placeholder="Your full name",
+                         class="input-error" if form.name.errors else "") }}
+            {% for error in form.name.errors %}
+              <div class="field-error">{{ error }}</div>
+            {% endfor %}
+          </div>
+
+          <div class="form-group">
+            {{ form.bio.label }}
+            {{ form.bio(placeholder="e.g. Solo traveller from Surat who loves mountains and street food.",
+                        maxlength=160,
+                        class="input-error" if form.bio.errors else "",
+                        id="bioField") }}
+            <div class="char-hint"><span id="charCount">0</span> / 160</div>
+            {% for error in form.bio.errors %}
+              <div class="field-error">{{ error }}</div>
+            {% endfor %}
+          </div>
+
+          <div class="form-group">
+            {{ form.phone.label }}
+            {{ form.phone(placeholder="e.g. +91 98765 43210", class="input-error" if form.phone.errors else "") }}
+            {% for error in form.phone.errors %}
+              <div class="field-error">{{ error }}</div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- TRAVEL STYLE -->
+        <div class="edit-section">
+          <div class="edit-section-title">🧭 Travel Style</div>
+          <div class="style-options">
+            {% set style_meta = [
+              ('flexible',    '🌀', 'Flexible'),
+              ('adventurous', '🧗', 'Adventurous'),
+              ('relaxed',     '🏖️', 'Relaxed'),
+              ('budget',      '💰', 'Budget'),
+            ] %}
+            {% for value, icon, label in style_meta %}
+              <div class="style-option">
+                <input type="radio" name="travel_style" id="style_{{ value }}" value="{{ value }}"
+                  {% if current_user.travel_style == value %}checked{% endif %}>
+                <label for="style_{{ value }}" class="style-label">
+                  <span class="style-icon">{{ icon }}</span>
+                  {{ label }}
+                </label>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- INTERESTS -->
+        <div class="edit-section">
+          <div class="edit-section-title">❤️ Interests</div>
+          {% set interest_icons = {
+            'Mountains':  '⛰️',
+            'Beaches':    '🏖️',
+            'Heritage':   '🏛️',
+            'Food':       '🍜',
+            'Wildlife':   '🐯',
+            'Road Trips': '🚗'
+          } %}
+          <div class="interest-options" id="interestGroup">
+            {% for interest in all_interests %}
+              <div class="interest-option">
+                <input type="checkbox" name="interests" id="int_{{ loop.index }}"
+                       value="{{ interest }}"
+                       {% if interest in selected_interests %}checked{% endif %}>
+                <label for="int_{{ loop.index }}" class="interest-label">
+                  {{ interest_icons.get(interest, '✨') }} {{ interest }}
+                </label>
+              </div>
+            {% endfor %}
+          </div>
+          <p class="interest-hint">Pick up to 3 interests.</p>
+        </div>
+
+        <!-- ACTIONS -->
+        <div class="edit-actions">
+          <a href="{{ url_for('profile.view') }}" class="btn-cancel">Cancel</a>
+          <button type="submit" class="btn-save">Save Changes</button>
+        </div>
+
+      </div>
+    </form>
+
+  </div>
+</div>
+
+<script>
+  // Char counter for bio
+  const bio   = document.getElementById('bioField');
+  const count = document.getElementById('charCount');
+  function updateCount() { count.textContent = bio.value.length; }
+  bio.addEventListener('input', updateCount);
+  updateCount();
+
+  // Cap interests at 3
+  const interestBoxes = document.querySelectorAll('#interestGroup input[type="checkbox"]');
+  interestBoxes.forEach(cb => {
+    cb.addEventListener('change', () => {
+      const checked = document.querySelectorAll('#interestGroup input[type="checkbox"]:checked');
+      if (checked.length > 3) {
+        cb.checked = false;
+      }
+    });
+  });
+</script>
+{% endblock %}

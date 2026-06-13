@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+{% block title %}{{ trip.title }}{% endblock %}
+
+{% block extra_styles %}
+  .trip-page { background: var(--bg); min-height: calc(100vh - 64px); padding: 36px 48px 60px; }
+  .trip-inner { max-width: 1080px; margin: 0 auto; }
+
+  .btn-back {
+    font-size: 13px; font-weight: 600; color: var(--text-muted);
+    display: inline-flex; align-items: center; gap: 5px; margin-bottom: 16px; transition: color 0.15s;
+  }
+  .btn-back:hover { color: var(--text); }
+
+  .trip-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 24px; flex-wrap: wrap; gap: 16px;
+  }
+  .trip-title { font-size: 24px; font-weight: 900; letter-spacing: -0.02em; color: var(--text); margin-bottom: 6px; }
+  .trip-sub { font-size: 13px; color: var(--text-muted); display: flex; gap: 14px; flex-wrap: wrap; }
+  .trip-sub span { display: flex; align-items: center; gap: 4px; }
+
+  .badge { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 100px; }
+  .badge-active   { background: #d1fae5; color: #065f46; }
+  .badge-upcoming { background: #dbeafe; color: #1e40af; }
+  .badge-completed { background: #f3f4f6; color: #6b7280; }
+  .badge-owner    { background: var(--green-light); color: var(--green-dark); }
+
+  .header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .btn-primary {
+    font-size: 13px; font-weight: 700; color: white; padding: 9px 18px; border-radius: 9px;
+    background: var(--green); border: none; cursor: pointer; font-family: inherit; transition: background 0.15s;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .btn-primary:hover { background: var(--green-dark); color: white; }
+  .btn-secondary {
+    font-size: 13px; font-weight: 600; color: var(--text); padding: 9px 16px; border-radius: 9px;
+    border: 1.5px solid var(--border); background: var(--white); cursor: pointer; font-family: inherit;
+    transition: border-color 0.15s, color 0.15s; display: inline-flex; align-items: center; gap: 5px;
+  }
+  .btn-secondary:hover { border-color: var(--green); color: var(--green); }
+  .btn-danger {
+    font-size: 13px; font-weight: 600; color: #dc2626; padding: 9px 16px; border-radius: 9px;
+    border: 1.5px solid #fca5a5; background: var(--white); cursor: pointer; font-family: inherit; transition: background 0.15s;
+  }
+  .btn-danger:hover { background: #fef2f2; }
+
+  .desc-card {
+    background: var(--white); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px 20px; font-size: 14px; color: var(--text); line-height: 1.6; margin-bottom: 24px;
+  }
+
+  /* GRID */
+  .trip-grid { display: grid; grid-template-columns: 1fr 340px; gap: 24px; align-items: start; }
+  @media (max-width: 900px) { .trip-grid { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--white); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 24px; }
+  .panel-head { padding: 16px 18px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .panel-title { font-size: 14px; font-weight: 800; color: var(--text); display: flex; align-items: center; gap: 6px; }
+  .panel-count { font-size: 11px; font-weight: 700; background: var(--green); color: white; padding: 2px 7px; border-radius: 100px; }
+  .panel-body { padding: 14px 18px; }
+
+  /* MEMBERS */
+  .member-item { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .member-item:last-child { border-bottom: none; }
+  .member-avatar {
+    width: 32px; height: 32px; border-radius: 50%; background: var(--green); color: white;
+    font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .member-name { font-size: 13px; font-weight: 700; color: var(--text); }
+  .member-role { font-size: 11px; color: var(--text-muted); }
+
+  /* BUDDY REQUESTS */
+  .request-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .request-item:last-child { border-bottom: none; }
+  .req-avatar {
+    width: 32px; height: 32px; border-radius: 50%; background: var(--green); color: white;
+    font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .req-info { flex: 1; min-width: 0; }
+  .req-name { font-size: 13px; font-weight: 700; color: var(--text); }
+  .profile-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.5; }
+  .profile-bio { font-size: 11px; color: var(--text-muted); margin-top: 3px; font-style: italic; line-height: 1.5; }
+  /* Travel style chip – soft purple */
+  .profile-tag-style {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    color: #6d28d9; background: #ede9fe;
+    padding: 2px 9px; border-radius: 100px; margin: 2px 4px 0 0;
+  }
+  /* Interest chip – teal */
+  .profile-tag-interest {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    color: var(--green-dark); background: var(--green-light);
+    padding: 2px 9px; border-radius: 100px; margin: 2px 4px 0 0;
+  }
+  /* Keep old .profile-tag as fallback alias */
+  .profile-tag { display: inline-block; font-size: 10px; font-weight: 700; color: var(--green-dark);
+    background: var(--green-light); padding: 1px 8px; border-radius: 100px; margin: 2px 4px 0 0; }
+  .contact-line { font-size: 11px; color: var(--green-dark); margin-top: 3px; }
+  .req-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .btn-accept {
+    width: 28px; height: 28px; border-radius: 8px; background: #d1fae5; border: none; cursor: pointer;
+    font-size: 13px; display: flex; align-items: center; justify-content: center; transition: background 0.15s;
+  }
+  .btn-accept:hover { background: #6ee7b7; }
+  .btn-decline {
+    width: 28px; height: 28px; border-radius: 8px; background: #fee2e2; border: none; cursor: pointer;
+    font-size: 13px; display: flex; align-items: center; justify-content: center; transition: background 0.15s;
+  }
+  .btn-decline:hover { background: #fca5a5; }
+
+  /* EXPENSES */
+  .expense-form { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr auto; gap: 8px; margin-bottom: 16px; align-items: flex-end; }
+  .expense-form .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .expense-form label { font-size: 11px; font-weight: 600; color: var(--text-muted); }
+  .expense-form input, .expense-form select {
+    padding: 9px 10px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px;
+    font-family: inherit; color: var(--text); outline: none;
+  }
+  .expense-form input:focus, .expense-form select:focus { border-color: var(--green); }
+  .expense-form .btn-add {
+    font-size: 13px; font-weight: 700; color: white; padding: 9px 16px; border-radius: 8px;
+    background: var(--green); border: none; cursor: pointer; font-family: inherit; transition: background 0.15s;
+  }
+  .expense-form .btn-add:hover { background: var(--green-dark); }
+  @media (max-width: 760px) { .expense-form { grid-template-columns: 1fr 1fr; } }
+
+  .expense-item { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+  .expense-item:last-child { border-bottom: none; }
+  .exp-icon {
+    width: 34px; height: 34px; border-radius: 9px; background: var(--bg); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0;
+  }
+  .exp-info { flex: 1; min-width: 0; }
+  .exp-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .exp-meta { font-size: 11px; color: var(--text-muted); }
+  .exp-amount { font-size: 13px; font-weight: 700; color: var(--text); flex-shrink: 0; }
+  .exp-delete {
+    width: 26px; height: 26px; border-radius: 7px; background: #fee2e2; border: none; cursor: pointer;
+    font-size: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s;
+  }
+  .exp-delete:hover { background: #fca5a5; }
+
+  /* SETTLEMENT */
+  .settlement-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .settlement-item:last-child { border-bottom: none; }
+  .settle-name { font-size: 13px; font-weight: 700; color: var(--text); }
+  .settle-detail { font-size: 11px; color: var(--text-muted); }
+  .settle-balance { font-size: 13px; font-weight: 800; }
+  .settle-balance.positive { color: #059669; }
+  .settle-balance.negative { color: #dc2626; }
+  .settle-balance.zero { color: var(--text-muted); }
+
+  .empty-row { text-align: center; padding: 20px 0; color: var(--text-muted); font-size: 13px; }
+  .empty-row .icon { font-size: 26px; margin-bottom: 6px; display: block; }
+{% endblock %}
+
+{% block content %}
+<div class="trip-page">
+  <div class="trip-inner">
+
+    <a href="{{ url_for('trips.index') }}" class="btn-back">← Back to Trips</a>
+
+    <div class="trip-header">
+      <div>
+        <h1 class="trip-title">{{ trip.title }}</h1>
+        <div class="trip-sub">
+          <span>🛫 {{ trip.departure_city }} → 📍 {{ trip.destination }}</span>
+          <span>📅 {{ trip.start_date.strftime('%b %d') }} – {{ trip.end_date.strftime('%b %d, %Y') }}</span>
+          <span>👥 {{ trip.member_count() }}/{{ trip.max_members }} members</span>
+          <span>💰 ₹{{ "%.0f"|format(trip.budget_min) }}–₹{{ "%.0f"|format(trip.budget_max) }}</span>
+          {% if trip.status == 'active' %}
+            <span class="badge badge-active">Active</span>
+          {% elif trip.status == 'completed' %}
+            <span class="badge badge-completed">Completed</span>
+          {% else %}
+            <span class="badge badge-upcoming">Upcoming</span>
+          {% endif %}
+          {% if is_owner %}<span class="badge badge-owner">Owner</span>{% endif %}
+        </div>
+      </div>
+      <div class="header-actions">
+        {% if is_owner %}
+          <a href="{{ url_for('trips.edit', trip_id=trip.id) }}" class="btn-secondary">✏️ Edit</a>
+          <form method="POST" action="{{ url_for('trips.delete', trip_id=trip.id) }}"
+                onsubmit="return confirm('Delete this trip? This cannot be undone.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn-danger">🗑️ Delete</button>
+          </form>
+        {% elif not is_member %}
+          {% if membership and membership.status == 'pending' %}
+            <button class="btn-secondary" disabled>Request Pending</button>
+          {% elif membership and membership.status == 'declined' %}
+            <button class="btn-secondary" disabled>Request Declined</button>
+          {% else %}
+            <form method="POST" action="{{ url_for('trips.send_request', trip_id=trip.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn-primary">🤝 Send Buddy Request</button>
+            </form>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+
+    {% if trip.description %}
+      <div class="desc-card">{{ trip.description }}</div>
+    {% endif %}
+
+    <div class="trip-grid">
+      <!-- LEFT COLUMN -->
+      <div class="left-col">
+
+        <!-- EXPENSES -->
+        <div class="panel">
+          <div class="panel-head">
+            <div class="panel-title">
+              💸 Expenses
+              {% if expenses_list %}<span class="panel-count">{{ expenses_list|length }}</span>{% endif %}
+            </div>
+            <div style="font-size:13px;font-weight:800;color:var(--text);">Total: ₹{{ "%.2f"|format(trip.total_spent()) }}</div>
+          </div>
+          <div class="panel-body">
+
+            {% if is_member and expense_form %}
+            <form method="POST" action="{{ url_for('expenses.add', trip_id=trip.id) }}" class="expense-form" novalidate>
+              {{ expense_form.hidden_tag() }}
+              <div class="form-group">
+                {{ expense_form.title.label }}
+                {{ expense_form.title(placeholder="e.g. Dinner") }}
+              </div>
+              <div class="form-group">
+                {{ expense_form.amount.label }}
+                {{ expense_form.amount(placeholder="₹") }}
+              </div>
+              <div class="form-group">
+                {{ expense_form.category.label }}
+                {{ expense_form.category() }}
+              </div>
+              <div class="form-group">
+                {{ expense_form.paid_by_id.label }}
+                {{ expense_form.paid_by_id() }}
+              </div>
+              <button type="submit" class="btn-add">＋ Add</button>
+            </form>
+            {% endif %}
+
+            {% if expenses_list %}
+              {% set cat_icons = {'food':'🍜','transport':'🚌','accommodation':'🏨','activities':'🎟️'} %}
+              {% for exp in expenses_list %}
+              <div class="expense-item">
+                <div class="exp-icon">{{ cat_icons.get(exp.category, '💵') }}</div>
+                <div class="exp-info">
+                  <div class="exp-title">{{ exp.title }}</div>
+                  <div class="exp-meta">{{ exp.category|capitalize }} · paid by {{ exp.paid_by.name.split()[0] }} · {{ exp.date.strftime('%b %d') }}</div>
+                </div>
+                <div class="exp-amount">₹{{ "%.2f"|format(exp.amount) }}</div>
+                {% if is_member and (exp.paid_by_id == current_user.id or is_owner) %}
+                <form method="POST" action="{{ url_for('expenses.delete', trip_id=trip.id, expense_id=exp.id) }}"
+                      onsubmit="return confirm('Remove this expense?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="exp-delete" title="Remove">✕</button>
+                </form>
+                {% endif %}
+              </div>
+              {% endfor %}
+            {% else %}
+              <div class="empty-row"><span class="icon">🧾</span>No expenses added yet.</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- SETTLEMENT SUMMARY -->
+        <div class="panel">
+          <div class="panel-head">
+            <div class="panel-title">📊 Settlement Summary</div>
+          </div>
+          <div class="panel-body">
+            {% if expenses_list %}
+              {% for s in settlement %}
+              <div class="settlement-item">
+                <div>
+                  <div class="settle-name">{{ s.user.name }}{% if s.user.id == current_user.id %} (You){% endif %}</div>
+                  <div class="settle-detail">Paid ₹{{ "%.2f"|format(s.paid) }} · Share ₹{{ "%.2f"|format(s.share) }}</div>
+                </div>
+                {% if s.balance > 0 %}
+                  <div class="settle-balance positive">+₹{{ "%.2f"|format(s.balance) }} (gets back)</div>
+                {% elif s.balance < 0 %}
+                  <div class="settle-balance negative">-₹{{ "%.2f"|format(-s.balance) }} (owes)</div>
+                {% else %}
+                  <div class="settle-balance zero">Settled</div>
+                {% endif %}
+              </div>
+              {% endfor %}
+            {% else %}
+              <div class="empty-row"><span class="icon">⚖️</span>Settlement summary will appear once expenses are added.</div>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div class="right-col">
+
+        <!-- BUDDY REQUESTS (owner only) -->
+        {% if is_owner %}
+        <div class="panel" id="buddy-requests">
+          <div class="panel-head">
+            <div class="panel-title">
+              🤝 Buddy Requests
+              {% if pending_requests %}<span class="panel-count">{{ pending_requests|length }}</span>{% endif %}
+            </div>
+          </div>
+          <div class="panel-body">
+            {% if pending_requests %}
+              {% for req in pending_requests %}
+              <div class="request-item">
+                <div class="req-avatar">{{ req.user.name[0].upper() }}</div>
+                <div class="req-info">
+                  <div class="req-name">{{ req.user.name }}</div>
+                  <div class="profile-meta">
+                    <span class="profile-tag-style">{{ req.user.travel_style|capitalize }}</span>
+                    {% for interest in req.user.interests_list() %}<span class="profile-tag-interest">{{ interest }}</span>{% endfor %}
+                  </div>
+                  {% if req.user.bio %}<div class="profile-bio">"{{ req.user.bio }}"</div>{% endif %}
+                </div>
+                <div class="req-actions">
+                  <form method="POST" action="{{ url_for('trips.accept_request', trip_id=trip.id, member_id=req.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn-accept" title="Accept">✓</button>
+                  </form>
+                  <form method="POST" action="{{ url_for('trips.decline_request', trip_id=trip.id, member_id=req.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn-decline" title="Decline">✕</button>
+                  </form>
+                </div>
+              </div>
+              {% endfor %}
+            {% else %}
+              <div class="empty-row"><span class="icon">🤷</span>No pending requests.</div>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- MEMBERS -->
+        <div class="panel">
+          <div class="panel-head">
+            <div class="panel-title">
+              👥 Members
+              <span class="panel-count">{{ trip.member_count() }}</span>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="member-item">
+              <div class="member-avatar">{{ trip.owner.name[0].upper() }}</div>
+              <div>
+                <div class="member-name">{{ trip.owner.name }}</div>
+                <div class="member-role">Trip Creator</div>
+                <div class="profile-meta">
+                  <span class="profile-tag-style">{{ trip.owner.travel_style|capitalize }}</span>
+                  {% for interest in trip.owner.interests_list() %}<span class="profile-tag-interest">{{ interest }}</span>{% endfor %}
+                </div>
+                {% if trip.owner.bio %}<div class="profile-bio">"{{ trip.owner.bio }}"</div>{% endif %}
+                {% if is_member %}
+                  <div class="contact-line">✉️ {{ trip.owner.email }}{% if trip.owner.phone %} · 📞 {{ trip.owner.phone }}{% endif %}</div>
+                {% endif %}
+              </div>
+            </div>
+            {% for m in trip.accepted_members() %}
+            <div class="member-item">
+              <div class="member-avatar">{{ m.user.name[0].upper() }}</div>
+              <div>
+                <div class="member-name">{{ m.user.name }}</div>
+                <div class="member-role">Member</div>
+                <div class="profile-meta">
+                  <span class="profile-tag-style">{{ m.user.travel_style|capitalize }}</span>
+                  {% for interest in m.user.interests_list() %}<span class="profile-tag-interest">{{ interest }}</span>{% endfor %}
+                </div>
+                {% if m.user.bio %}<div class="profile-bio">"{{ m.user.bio }}"</div>{% endif %}
+                {% if is_member %}
+                  <div class="contact-line">✉️ {{ m.user.email }}{% if m.user.phone %} · 📞 {{ m.user.phone }}{% endif %}</div>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

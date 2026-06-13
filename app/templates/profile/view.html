@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% block title %}My Profile{% endblock %}
+
+{% block extra_styles %}
+  .profile-page {
+    background: var(--bg);
+    min-height: calc(100vh - 64px);
+    padding: 40px 48px 64px;
+  }
+
+  .profile-inner {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  /* CARD */
+  .profile-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    overflow: hidden;
+  }
+
+  /* COVER STRIP */
+  .profile-cover {
+    height: 90px;
+    background: linear-gradient(135deg, #0C3547 0%, #0891B2 100%);
+  }
+
+  /* AVATAR + NAME ROW */
+  .profile-identity {
+    padding: 0 32px 28px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-top: -36px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .profile-avatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--green);
+    color: white;
+    font-size: 28px;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid var(--white);
+    flex-shrink: 0;
+  }
+
+  .profile-name-block { flex: 1; min-width: 0; padding-top: 40px; }
+
+  .profile-name {
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .profile-email {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .btn-edit {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--green);
+    padding: 9px 18px;
+    border-radius: 10px;
+    border: 1.5px solid var(--green);
+    background: transparent;
+    transition: background 0.15s, color 0.15s;
+    align-self: flex-end;
+    margin-bottom: 4px;
+  }
+  .btn-edit:hover { background: var(--green); color: white; }
+
+  /* DIVIDER */
+  .profile-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0 32px;
+  }
+
+  /* SECTIONS */
+  .profile-section {
+    padding: 24px 32px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .profile-section:last-child { border-bottom: none; }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+
+  .bio-text {
+    font-size: 15px;
+    color: var(--text);
+    line-height: 1.65;
+  }
+
+  .bio-empty {
+    font-size: 14px;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  /* STYLE BADGE */
+  .style-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--green-dark);
+    background: var(--green-light);
+    border: 1px solid rgba(8,145,178,0.2);
+    padding: 7px 16px;
+    border-radius: 100px;
+  }
+
+  /* INTERESTS */
+  .interests-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .interest-tag {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    border-radius: 100px;
+  }
+
+  .no-interests {
+    font-size: 14px;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  @media (max-width: 640px) {
+    .profile-page { padding: 24px 20px 48px; }
+    .profile-identity { padding: 0 20px 24px; }
+    .profile-section { padding: 20px; }
+    .profile-divider { margin: 0 20px; }
+  }
+{% endblock %}
+
+{% block content %}
+<div class="profile-page">
+  <div class="profile-inner">
+    <div class="profile-card">
+
+      <div class="profile-cover"></div>
+
+      <div class="profile-identity">
+        <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;">
+          <div class="profile-avatar">{{ current_user.name[0].upper() }}</div>
+          <div class="profile-name-block">
+            <div class="profile-name">{{ current_user.name }}</div>
+            <div class="profile-email">{{ current_user.email }}</div>
+          </div>
+        </div>
+        <a href="{{ url_for('profile.edit') }}" class="btn-edit">✏️ Edit Profile</a>
+      </div>
+
+      <!-- BIO -->
+      <div class="profile-section">
+        <div class="section-label">Bio</div>
+        {% if current_user.bio %}
+          <p class="bio-text">{{ current_user.bio }}</p>
+        {% else %}
+          <p class="bio-empty">No bio yet. <a href="{{ url_for('profile.edit') }}" style="color:var(--green);font-weight:600;">Add one →</a></p>
+        {% endif %}
+      </div>
+
+      <!-- TRAVEL STYLE -->
+      <div class="profile-section">
+        <div class="section-label">Travel Style</div>
+        {% set style_icons = {
+          'adventurous': '🧗',
+          'relaxed':     '🏖️',
+          'budget':      '💰',
+          'flexible':    '🌀'
+        } %}
+        <span class="style-badge">
+          {{ style_icons.get(current_user.travel_style, '🌀') }}
+          {{ current_user.travel_style | capitalize }}
+        </span>
+      </div>
+
+      <!-- INTERESTS -->
+      <div class="profile-section">
+        <div class="section-label">Interests</div>
+        {% set interest_icons = {
+          'Mountains':  '⛰️',
+          'Beaches':    '🏖️',
+          'Heritage':   '🏛️',
+          'Food':       '🍜',
+          'Wildlife':   '🐯',
+          'Road Trips': '🚗'
+        } %}
+        {% if current_user.interests_list() %}
+          <div class="interests-list">
+            {% for interest in current_user.interests_list() %}
+              <span class="interest-tag">
+                {{ interest_icons.get(interest, '✨') }} {{ interest }}
+              </span>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="no-interests">No interests added yet. <a href="{{ url_for('profile.edit') }}" style="color:var(--green);font-weight:600;">Add some →</a></p>
+        {% endif %}
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

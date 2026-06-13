@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Create Account{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+  <div class="auth-card">
+
+    <div class="auth-logo">
+      <div class="auth-logo-icon"></div>
+      TravelBuddy
+    </div>
+
+    <h1 class="auth-heading">Create your account</h1>
+    <p class="auth-subheading">Join thousands of travellers finding companions and splitting costs.</p>
+
+    <form method="POST" action="{{ url_for('auth.register') }}" novalidate>
+      {{ form.hidden_tag() }}
+
+      <div class="form-group">
+        {{ form.name.label }}
+        {{ form.name(placeholder="Your full name", class="input-error" if form.name.errors else "") }}
+        {% for error in form.name.errors %}
+          <div class="field-error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="form-group">
+        {{ form.email.label }}
+        {{ form.email(placeholder="you@example.com", class="input-error" if form.email.errors else "", autocomplete="email") }}
+        {% for error in form.email.errors %}
+          <div class="field-error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="form-group">
+        {{ form.password.label }}
+        {{ form.password(placeholder="At least 6 characters", class="input-error" if form.password.errors else "", autocomplete="new-password") }}
+        {% for error in form.password.errors %}
+          <div class="field-error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="form-group">
+        {{ form.confirm_password.label }}
+        {{ form.confirm_password(placeholder="Repeat your password", class="input-error" if form.confirm_password.errors else "", autocomplete="new-password") }}
+        {% for error in form.confirm_password.errors %}
+          <div class="field-error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      {{ form.submit(class="btn-submit") }}
+    </form>
+
+    <div class="auth-divider"></div>
+
+    <p class="auth-switch">
+      Already have an account? <a href="{{ url_for('auth.login') }}">Log in</a>
+    </p>
+
+  </div>
+</div>
+{% endblock %}
