@@ -1,12 +1,14 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, FloatField, SelectField, SubmitField
-from wtforms.validators import DataRequired, Length, NumberRange
+from wtforms import StringField, FloatField, SelectField, SubmitField, DateField
+from wtforms.validators import DataRequired, Length, NumberRange, Optional
+from datetime import date
 
 EXPENSE_CATEGORIES = [
     ('food',          'Food'),
     ('transport',     'Transport'),
     ('accommodation', 'Accommodation'),
     ('activities',    'Activities'),
+    ('other',         'Other'),
 ]
 
 
@@ -19,6 +21,7 @@ class ExpenseForm(FlaskForm):
         DataRequired(message='Amount is required.'),
         NumberRange(min=0.01, message='Amount must be greater than 0.')
     ])
-    category = SelectField('Category', choices=EXPENSE_CATEGORIES, validators=[DataRequired()])
-    paid_by_id = SelectField('Paid By', coerce=int, validators=[DataRequired()])
-    submit = SubmitField('Add Expense')
+    category    = SelectField('Category', choices=EXPENSE_CATEGORIES, validators=[DataRequired()])
+    expense_date = DateField('Date', default=date.today, validators=[Optional()])
+    paid_by_id  = SelectField('Paid By', coerce=int, validators=[DataRequired()])
+    submit      = SubmitField('Add Expense')

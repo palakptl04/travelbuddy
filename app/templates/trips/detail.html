@@ -108,47 +108,119 @@
   }
   .btn-decline:hover { background: #fca5a5; }
 
-  /* EXPENSES */
-  .expense-form { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr auto; gap: 8px; margin-bottom: 16px; align-items: flex-end; }
-  .expense-form .form-group { display: flex; flex-direction: column; gap: 4px; }
-  .expense-form label { font-size: 11px; font-weight: 600; color: var(--text-muted); }
-  .expense-form input, .expense-form select {
-    padding: 9px 10px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px;
-    font-family: inherit; color: var(--text); outline: none;
+  /* ── EXPENSE FORM ── */
+  .expense-form-card {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; margin-bottom: 20px;
   }
-  .expense-form input:focus, .expense-form select:focus { border-color: var(--green); }
-  .expense-form .btn-add {
-    font-size: 13px; font-weight: 700; color: white; padding: 9px 16px; border-radius: 8px;
-    background: var(--green); border: none; cursor: pointer; font-family: inherit; transition: background 0.15s;
+  .expense-form-card .form-row {
+    display: grid; grid-template-columns: 1.8fr 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;
   }
-  .expense-form .btn-add:hover { background: var(--green-dark); }
-  @media (max-width: 760px) { .expense-form { grid-template-columns: 1fr 1fr; } }
+  .expense-form-card .form-row-2 {
+    display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: flex-end;
+  }
+  .expense-form-card .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .expense-form-card label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+  .expense-form-card input,
+  .expense-form-card select {
+    padding: 9px 11px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 13px; font-family: inherit; color: var(--text); background: var(--white); outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .expense-form-card input:focus,
+  .expense-form-card select:focus {
+    border-color: var(--green); box-shadow: 0 0 0 3px rgba(8,145,178,.1);
+  }
+  .btn-add-expense {
+    font-size: 13px; font-weight: 700; color: white; padding: 9px 20px; border-radius: 8px;
+    background: var(--green); border: none; cursor: pointer; font-family: inherit;
+    transition: background 0.15s; white-space: nowrap; height: 38px;
+  }
+  .btn-add-expense:hover { background: var(--green-dark); }
+  @media (max-width: 820px) {
+    .expense-form-card .form-row   { grid-template-columns: 1fr 1fr; }
+    .expense-form-card .form-row-2 { grid-template-columns: 1fr 1fr; }
+  }
 
-  .expense-item { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); }
-  .expense-item:last-child { border-bottom: none; }
-  .exp-icon {
-    width: 34px; height: 34px; border-radius: 9px; background: var(--bg); border: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0;
+  /* ── EXPENSE TABLE ── */
+  .expense-table-wrap { overflow-x: auto; }
+  .expense-table {
+    width: 100%; border-collapse: collapse; font-size: 13px;
   }
-  .exp-info { flex: 1; min-width: 0; }
-  .exp-title { font-size: 13px; font-weight: 600; color: var(--text); }
-  .exp-meta { font-size: 11px; color: var(--text-muted); }
-  .exp-amount { font-size: 13px; font-weight: 700; color: var(--text); flex-shrink: 0; }
-  .exp-delete {
-    width: 26px; height: 26px; border-radius: 7px; background: #fee2e2; border: none; cursor: pointer;
-    font-size: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s;
+  .expense-table thead th {
+    font-size: 11px; font-weight: 700; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: .04em;
+    padding: 8px 10px; border-bottom: 1px solid var(--border);
+    text-align: left; white-space: nowrap;
   }
-  .exp-delete:hover { background: #fca5a5; }
+  .expense-table thead th.col-amount,
+  .expense-table thead th.col-actions { text-align: right; }
+  .expense-table tbody tr {
+    border-bottom: 1px solid var(--border); transition: background 0.12s;
+  }
+  .expense-table tbody tr:last-child { border-bottom: none; }
+  .expense-table tbody tr:hover { background: var(--bg); }
+  .expense-table td { padding: 10px 10px; vertical-align: middle; }
+  .td-date { color: var(--text-muted); white-space: nowrap; }
+  .td-title { font-weight: 600; color: var(--text); }
+  .td-payer { color: var(--text-muted); white-space: nowrap; }
+  .td-amount { font-weight: 800; color: var(--text); text-align: right; white-space: nowrap; }
+  .td-actions { text-align: right; }
 
-  /* SETTLEMENT */
-  .settlement-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  /* category pill */
+  .cat-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 700; padding: 2px 9px; border-radius: 100px;
+    white-space: nowrap;
+  }
+  .cat-food          { background: #fef3c7; color: #92400e; }
+  .cat-transport     { background: #dbeafe; color: #1e40af; }
+  .cat-accommodation { background: #ede9fe; color: #5b21b6; }
+  .cat-activities    { background: #d1fae5; color: #065f46; }
+  .cat-other         { background: #f3f4f6; color: #374151; }
+
+  /* delete btn in table */
+  .btn-tbl-delete {
+    width: 26px; height: 26px; border-radius: 7px; background: #fee2e2; border: none;
+    cursor: pointer; font-size: 12px; display: inline-flex; align-items: center;
+    justify-content: center; transition: background 0.15s; vertical-align: middle;
+  }
+  .btn-tbl-delete:hover { background: #fca5a5; }
+
+  /* ── SETTLEMENT ── */
+  .settlement-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
   .settlement-item:last-child { border-bottom: none; }
-  .settle-name { font-size: 13px; font-weight: 700; color: var(--text); }
+  .settle-name   { font-size: 13px; font-weight: 700; color: var(--text); }
   .settle-detail { font-size: 11px; color: var(--text-muted); }
   .settle-balance { font-size: 13px; font-weight: 800; }
   .settle-balance.positive { color: #059669; }
   .settle-balance.negative { color: #dc2626; }
-  .settle-balance.zero { color: var(--text-muted); }
+  .settle-balance.zero     { color: var(--text-muted); }
+
+  /* who-owes-whom card */
+  .owes-section {
+    margin-top: 16px; border-top: 1px solid var(--border); padding-top: 14px;
+  }
+  .owes-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--text-muted); margin-bottom: 10px;
+  }
+  .owes-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 9px; background: var(--bg);
+    margin-bottom: 6px; font-size: 13px;
+  }
+  .owes-debtor   { font-weight: 700; color: #dc2626; }
+  .owes-arrow    { color: var(--text-muted); font-size: 11px; }
+  .owes-creditor { font-weight: 700; color: #059669; }
+  .owes-amount   { margin-left: auto; font-weight: 800; color: var(--text); }
+  .owes-settled  {
+    display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+    border-radius: 9px; background: #d1fae5; font-size: 13px; font-weight: 600; color: #065f46;
+  }
 
   .empty-row { text-align: center; padding: 20px 0; color: var(--text-muted); font-size: 13px; }
   .empty-row .icon { font-size: 26px; margin-bottom: 6px; display: block; }
@@ -221,49 +293,85 @@
           <div class="panel-body">
 
             {% if is_member and expense_form %}
-            <form method="POST" action="{{ url_for('expenses.add', trip_id=trip.id) }}" class="expense-form" novalidate>
+            {# ── Add Expense Form ── #}
+            <form method="POST" action="{{ url_for('expenses.add', trip_id=trip.id) }}" class="expense-form-card" novalidate>
               {{ expense_form.hidden_tag() }}
-              <div class="form-group">
-                {{ expense_form.title.label }}
-                {{ expense_form.title(placeholder="e.g. Dinner") }}
+              <div class="form-row">
+                <div class="form-group">
+                  {{ expense_form.title.label }}
+                  {{ expense_form.title(placeholder="e.g. Hotel night", id="exp_title") }}
+                </div>
+                <div class="form-group">
+                  {{ expense_form.amount.label }}
+                  {{ expense_form.amount(placeholder="0.00", id="exp_amount") }}
+                </div>
+                <div class="form-group">
+                  {{ expense_form.category.label }}
+                  {{ expense_form.category(id="exp_category") }}
+                </div>
+                <div class="form-group">
+                  {{ expense_form.expense_date.label }}
+                  {{ expense_form.expense_date(id="exp_date") }}
+                </div>
               </div>
-              <div class="form-group">
-                {{ expense_form.amount.label }}
-                {{ expense_form.amount(placeholder="₹") }}
+              <div class="form-row-2">
+                <div class="form-group">
+                  {{ expense_form.paid_by_id.label }}
+                  {{ expense_form.paid_by_id(id="exp_paid_by") }}
+                </div>
+                <div></div>
+                <button type="submit" class="btn-add-expense" id="btn_add_expense">＋ Add Expense</button>
               </div>
-              <div class="form-group">
-                {{ expense_form.category.label }}
-                {{ expense_form.category() }}
-              </div>
-              <div class="form-group">
-                {{ expense_form.paid_by_id.label }}
-                {{ expense_form.paid_by_id() }}
-              </div>
-              <button type="submit" class="btn-add">＋ Add</button>
             </form>
             {% endif %}
 
+            {# ── Expense History Table ── #}
             {% if expenses_list %}
-              {% set cat_icons = {'food':'🍜','transport':'🚌','accommodation':'🏨','activities':'🎟️'} %}
-              {% for exp in expenses_list %}
-              <div class="expense-item">
-                <div class="exp-icon">{{ cat_icons.get(exp.category, '💵') }}</div>
-                <div class="exp-info">
-                  <div class="exp-title">{{ exp.title }}</div>
-                  <div class="exp-meta">{{ exp.category|capitalize }} · paid by {{ exp.paid_by.name.split()[0] }} · {{ exp.date.strftime('%b %d') }}</div>
-                </div>
-                <div class="exp-amount">₹{{ "%.2f"|format(exp.amount) }}</div>
-                {% if is_member and (exp.paid_by_id == current_user.id or is_owner) %}
-                <form method="POST" action="{{ url_for('expenses.delete', trip_id=trip.id, expense_id=exp.id) }}"
-                      onsubmit="return confirm('Remove this expense?');">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="exp-delete" title="Remove">✕</button>
-                </form>
-                {% endif %}
+              {% set cat_icons  = {'food':'🍜','transport':'🚌','accommodation':'🏨','activities':'🎟️','other':'💵'} %}
+              {% set cat_labels = {'food':'Food','transport':'Transport','accommodation':'Accommodation','activities':'Activities','other':'Other'} %}
+              <div class="expense-table-wrap">
+                <table class="expense-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Title</th>
+                      <th>Category</th>
+                      <th>Paid By</th>
+                      <th class="col-amount">Amount</th>
+                      <th class="col-actions"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for exp in expenses_list %}
+                    <tr>
+                      <td class="td-date">{{ exp.date.strftime('%b %d, %Y') }}</td>
+                      <td class="td-title">{{ exp.title }}</td>
+                      <td>
+                        <span class="cat-pill cat-{{ exp.category }}">
+                          {{ cat_icons.get(exp.category, '💵') }}
+                          {{ cat_labels.get(exp.category, exp.category|capitalize) }}
+                        </span>
+                      </td>
+                      <td class="td-payer">{{ exp.paid_by.name.split()[0] }}</td>
+                      <td class="td-amount">₹{{ "%.2f"|format(exp.amount) }}</td>
+                      <td class="td-actions">
+                        {% if is_member and (exp.paid_by_id == current_user.id or is_owner) %}
+                        <form method="POST"
+                              action="{{ url_for('expenses.delete', trip_id=trip.id, expense_id=exp.id) }}"
+                              style="display:inline;"
+                              onsubmit="return confirm('Remove \'{{ exp.title | replace(\"'\", \"\\\'\") }}\'?');">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                          <button type="submit" class="btn-tbl-delete" title="Delete expense">🗑</button>
+                        </form>
+                        {% endif %}
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
               </div>
-              {% endfor %}
             {% else %}
-              <div class="empty-row"><span class="icon">🧾</span>No expenses added yet.</div>
+              <div class="empty-row"><span class="icon">🧾</span>No expenses recorded yet.</div>
             {% endif %}
           </div>
         </div>
@@ -275,6 +383,7 @@
           </div>
           <div class="panel-body">
             {% if expenses_list %}
+              {# Per-person balance breakdown #}
               {% for s in settlement %}
               <div class="settlement-item">
                 <div>
@@ -282,16 +391,34 @@
                   <div class="settle-detail">Paid ₹{{ "%.2f"|format(s.paid) }} · Share ₹{{ "%.2f"|format(s.share) }}</div>
                 </div>
                 {% if s.balance > 0 %}
-                  <div class="settle-balance positive">+₹{{ "%.2f"|format(s.balance) }} (gets back)</div>
+                  <div class="settle-balance positive">+₹{{ "%.2f"|format(s.balance) }} gets back</div>
                 {% elif s.balance < 0 %}
-                  <div class="settle-balance negative">-₹{{ "%.2f"|format(-s.balance) }} (owes)</div>
+                  <div class="settle-balance negative">−₹{{ "%.2f"|format(-s.balance) }} owes</div>
                 {% else %}
-                  <div class="settle-balance zero">Settled</div>
+                  <div class="settle-balance zero">✓ Settled</div>
                 {% endif %}
               </div>
               {% endfor %}
+
+              {# Who Owes Whom #}
+              <div class="owes-section">
+                <div class="owes-label">💸 Who pays whom</div>
+                {% if settlements %}
+                  {% for t in settlements %}
+                  <div class="owes-row">
+                    <span class="owes-debtor">{{ t.debtor.name.split()[0] }}</span>
+                    <span class="owes-arrow">pays →</span>
+                    <span class="owes-creditor">{{ t.creditor.name.split()[0] }}</span>
+                    <span class="owes-amount">₹{{ "%.2f"|format(t.amount) }}</span>
+                  </div>
+                  {% endfor %}
+                {% else %}
+                  <div class="owes-settled">🎉 Everyone is settled up!</div>
+                {% endif %}
+              </div>
+
             {% else %}
-              <div class="empty-row"><span class="icon">⚖️</span>Settlement summary will appear once expenses are added.</div>
+              <div class="empty-row"><span class="icon">⚖️</span>Settlement will appear once expenses are added.</div>
             {% endif %}
           </div>
         </div>

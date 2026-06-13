@@ -107,8 +107,12 @@ def detail(trip_id):
         expense_form.paid_by_id.choices = [
             (u.id, u.name) for u in trip.all_member_users()
         ]
+        # Pre-fill today's date
+        if not expense_form.expense_date.data:
+            from datetime import date
+            expense_form.expense_date.data = date.today()
 
-    expenses_list = trip.expenses.order_by(Expense.created_at.desc()).all()
+    expenses_list = trip.expenses.order_by(Expense.date.desc(), Expense.created_at.desc()).all()
 
     return render_template('trips/detail.html',
         trip=trip,
@@ -119,6 +123,7 @@ def detail(trip_id):
         expense_form=expense_form,
         expenses_list=expenses_list,
         settlement=trip.settlement_summary(),
+        settlements=trip.calculate_settlements(),
         today=date.today()
     )
 

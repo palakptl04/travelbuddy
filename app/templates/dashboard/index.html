@@ -433,12 +433,9 @@
     <div class="dash-header">
       <div>
         <h1 class="dash-greeting">
-          <span class="wave">
-            {% set hour = now().hour if now is defined else 12 %}
-            {% if hour < 12 %}Good morning{% elif hour < 18 %}Good afternoon{% else %}Good evening{% endif %}
-          </span>, {{ current_user.name.split()[0] }} 👋
+          Ready for your next adventure, {{ current_user.name.split()[0] }}? ✈️
         </h1>
-        <p class="dash-subtitle">Here's what's happening with your travels today.</p>
+        <p class="dash-subtitle">Find travel buddies, plan exciting trips, and make every journey more memorable.</p>
       </div>
     </div>
 

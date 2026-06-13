@@ -148,6 +148,58 @@ class Trip(db.Model):
             })
         return summary
 
+    def calculate_settlements(self):
+        """
+        Greedy minimum-transfers algorithm (Splitwise-style).
+
+        Returns a list of dicts:
+          { 'debtor': User, 'creditor': User, 'amount': float }
+
+        Example: A paid ₹900, B paid ₹1200, C paid ₹0  →  3 members, share = ₹700
+          Net: A=+200, B=+500, C=-700
+          Result: [C→B ₹500, C→A ₹200]  (only 2 transactions for 3 people)
+        """
+        members = self.all_member_users()
+        mc = len(members)
+        if mc == 0:
+            return []
+
+        total = sum(e.amount for e in self.expenses)
+        share = total / mc
+
+        # Build net balance list [(user, net_balance)]
+        balances = []
+        for user in members:
+            paid = sum(e.amount for e in self.expenses.filter_by(paid_by_id=user.id))
+            balances.append([user, round(paid - share, 2)])
+
+        # Separate into creditors (balance > 0) and debtors (balance < 0)
+        creditors = sorted([b for b in balances if b[1] > 0.009], key=lambda x: -x[1])
+        debtors   = sorted([b for b in balances if b[1] < -0.009], key=lambda x: x[1])
+
+        settlements = []
+        i, j = 0, 0
+        while i < len(debtors) and j < len(creditors):
+            debtor, debt     = debtors[i]
+            creditor, credit = creditors[j]
+            transfer = round(min(-debt, credit), 2)
+
+            settlements.append({
+                'debtor':   debtor,
+                'creditor': creditor,
+                'amount':   transfer
+            })
+
+            debtors[i][1]   = round(debt + transfer, 2)
+            creditors[j][1] = round(credit - transfer, 2)
+
+            if abs(debtors[i][1]) < 0.01:
+                i += 1
+            if abs(creditors[j][1]) < 0.01:
+                j += 1
+
+        return settlements
+
     def pending_request_for(self, user_id):
         return TripMember.query.filter_by(trip_id=self.id, user_id=user_id).first()
 
