@@ -109,7 +109,6 @@ def detail(trip_id):
         ]
         # Pre-fill today's date
         if not expense_form.expense_date.data:
-            from datetime import date
             expense_form.expense_date.data = date.today()
 
     expenses_list = trip.expenses.order_by(Expense.date.desc(), Expense.created_at.desc()).all()
