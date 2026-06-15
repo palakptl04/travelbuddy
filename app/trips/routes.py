@@ -25,7 +25,6 @@ def index():
 
     destination = request.args.get('destination', '').strip()
     budget = request.args.get('budget', '').strip()
-    open_only = request.args.get('open_only', '').strip()
 
     if destination:
         query = query.filter(Trip.destination == destination)
@@ -38,9 +37,6 @@ def index():
             pass
 
     browse_trips = query.order_by(Trip.start_date.asc()).all()
-    # Hide trips that are already full unless "open only" not requested
-    if open_only:
-        browse_trips = [t for t in browse_trips if not t.is_full()]
 
     # Pending request trip ids for current user (to disable "request" button)
     pending_ids = {m.trip_id for m in
@@ -55,7 +51,6 @@ def index():
         accepted_ids=accepted_ids,
         destination=destination,
         budget=budget,
-        open_only=open_only,
         city_choices=GUJARAT_CITIES + NEARBY_CITIES,
         today=date.today()
     )
@@ -104,9 +99,8 @@ def detail(trip_id):
     expense_form = None
     if is_member:
         expense_form = ExpenseForm()
-        expense_form.paid_by_id.choices = [
-            (u.id, u.name) for u in trip.all_member_users()
-        ]
+        # paid_by is always current user — set choices to just the current user
+        expense_form.paid_by_id.choices = [(current_user.id, current_user.name)]
         # Pre-fill today's date
         if not expense_form.expense_date.data:
             expense_form.expense_date.data = date.today()
@@ -226,3 +220,37 @@ def decline_request(trip_id, member_id):
     db.session.commit()
     flash(f'Request from {member.user.name} declined.', 'success')
     return redirect(url_for('trips.detail', trip_id=trip_id))
+
+
+@trips.route('/trips/<int:trip_id>/leave', methods=['POST'])
+@login_required
+def leave(trip_id):
+    trip = Trip.query.get_or_404(trip_id)
+
+    if trip.owner_id == current_user.id:
+        flash('Trip owner cannot leave. Delete the trip instead.', 'error')
+        return redirect(url_for('trips.detail', trip_id=trip_id))
+
+    membership = TripMember.query.filter_by(
+        trip_id=trip_id, user_id=current_user.id, status='accepted'
+    ).first()
+    if not membership:
+        flash('You are not an accepted member of this trip.', 'error')
+        return redirect(url_for('trips.detail', trip_id=trip_id))
+
+    # Block if user has any expenses recorded in this trip
+    user_expense_count = Expense.query.filter_by(
+        trip_id=trip_id, paid_by_id=current_user.id
+    ).count()
+    if user_expense_count > 0:
+        flash(
+            'You cannot leave this trip because you have recorded expenses. '
+            'Remove your expenses first, then try again.',
+            'error'
+        )
+        return redirect(url_for('trips.detail', trip_id=trip_id))
+
+    db.session.delete(membership)
+    db.session.commit()
+    flash(f'You have left "{trip.title}".', 'success')
+    return redirect(url_for('trips.index'))

@@ -72,10 +72,12 @@
 
   .trip-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
   .badge { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 100px; }
-  .badge-active   { background: #d1fae5; color: #065f46; }
-  .badge-upcoming { background: #dbeafe; color: #1e40af; }
-  .badge-owner    { background: var(--green-light); color: var(--green-dark); }
-  .badge-completed { background: #f3f4f6; color: #6b7280; }
+  .badge-active      { background: #d1fae5; color: #065f46; }
+  .badge-upcoming    { background: #dbeafe; color: #1e40af; }
+  .badge-owner       { background: var(--green-light); color: var(--green-dark); }
+  .badge-completed   { background: #f3f4f6; color: #6b7280; }
+  .badge-open        { background: #d1fae5; color: #065f46; }
+  .badge-join-closed { background: #fee2e2; color: #991b1b; }
 
   .btn-small {
     font-size: 12px; font-weight: 700; padding: 7px 14px; border-radius: 8px;
@@ -175,12 +177,8 @@
           <label>My Budget (₹)</label>
           <input type="number" name="budget" placeholder="e.g. 5000" value="{{ budget }}">
         </div>
-        <div class="filter-field" style="flex: 0 0 auto; flex-direction: row; align-items: center; gap: 6px;">
-          <input type="checkbox" name="open_only" id="open_only" value="1" {% if open_only %}checked{% endif %} style="width:auto;">
-          <label for="open_only" style="margin:0;">Open Trips Only</label>
-        </div>
         <button type="submit" class="btn-filter">Search</button>
-        {% if destination or budget or open_only %}
+        {% if destination or budget %}
           <a href="{{ url_for('trips.index') }}" class="btn-clear">Clear</a>
         {% endif %}
       </form>
@@ -201,11 +199,16 @@
               </div>
             </div>
             <div class="trip-right">
+              {% if trip.is_full() %}
+                <span class="badge badge-join-closed">Join Closed</span>
+              {% else %}
+                <span class="badge badge-open">Open</span>
+              {% endif %}
               {% if trip.id in accepted_ids %}
                 <span class="badge badge-owner">Joined</span>
               {% elif trip.id in pending_ids %}
                 <button class="btn-small btn-pending" disabled>Request Sent</button>
-              {% else %}
+              {% elif not trip.is_full() %}
                 <form method="POST" action="{{ url_for('trips.send_request', trip_id=trip.id) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="btn-small btn-request">Send Buddy Request</button>

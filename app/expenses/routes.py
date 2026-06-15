@@ -1,4 +1,4 @@
-from flask import redirect, url_for, flash
+from flask import render_template, redirect, url_for, flash
 from flask_login import login_required, current_user
 from datetime import date as date_today
 
@@ -29,13 +29,14 @@ def add(trip_id):
         return redirect(url_for('trips.detail', trip_id=trip.id))
 
     form = ExpenseForm()
-    form.paid_by_id.choices = [(u.id, u.name) for u in trip.all_member_users()]
+    # Paid By is always the current logged-in user — force choices to just self
+    form.paid_by_id.choices = [(current_user.id, current_user.name)]
 
     if form.validate_on_submit():
         expense_date = form.expense_date.data or date_today.today()
         expense = Expense(
             trip_id=trip.id,
-            paid_by_id=form.paid_by_id.data,
+            paid_by_id=current_user.id,   # always self — ignore submitted value
             title=form.title.data.strip(),
             amount=form.amount.data,
             category=form.category.data,
@@ -71,3 +72,32 @@ def delete(trip_id, expense_id):
     db.session.commit()
     flash('Expense removed.', 'success')
     return redirect(url_for('trips.detail', trip_id=trip.id))
+
+
+@expenses.route('/my-expenses')
+@login_required
+def my_expenses():
+    """Show all trips the user belongs to with per-trip expense summary."""
+    trip_ids = current_user._all_trip_ids()
+    trips_list = Trip.query.filter(Trip.id.in_(trip_ids)).order_by(Trip.start_date.desc()).all() \
+        if trip_ids else []
+
+    rows = []
+    pending_balance = 0.0
+    for trip in trips_list:
+        balance = trip.balance_for(current_user.id)
+        per_person = trip.your_share(current_user.id)
+        settled = abs(balance) < 0.01
+        if not settled:
+            pending_balance += balance
+        rows.append({
+            'trip': trip,
+            'per_person': round(per_person, 2),
+            'balance': round(balance, 2),
+            'settled': settled,
+        })
+
+    return render_template('expenses/my_expenses.html',
+        rows=rows,
+        pending_balance=round(pending_balance, 2)
+    )

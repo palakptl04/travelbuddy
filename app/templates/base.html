@@ -435,7 +435,7 @@
       <li><a href="{{ url_for('dashboard.index') }}" {% if request.endpoint == 'dashboard.index' %}class="active"{% endif %}>Dashboard</a></li>
       <li><a href="{{ url_for('trips.index') }}" {% if request.endpoint and request.endpoint.startswith('trips.') %}class="active"{% endif %}>Trips</a></li>
       
-      <li><a href="#" {% if request.endpoint == 'main.expenses' %}class="active"{% endif %}>Expenses</a></li>
+      <li><a href="{{ url_for('expenses.my_expenses') }}" {% if request.endpoint == 'expenses.my_expenses' %}class="active"{% endif %}>Expenses</a></li>
     </ul>
     <div class="nav-right">
       <div class="nav-user">

@@ -20,10 +20,11 @@
   .trip-sub span { display: flex; align-items: center; gap: 4px; }
 
   .badge { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 100px; }
-  .badge-active   { background: #d1fae5; color: #065f46; }
-  .badge-upcoming { background: #dbeafe; color: #1e40af; }
-  .badge-completed { background: #f3f4f6; color: #6b7280; }
-  .badge-owner    { background: var(--green-light); color: var(--green-dark); }
+  .badge-active      { background: #d1fae5; color: #065f46; }
+  .badge-upcoming    { background: #dbeafe; color: #1e40af; }
+  .badge-completed   { background: #f3f4f6; color: #6b7280; }
+  .badge-owner       { background: var(--green-light); color: var(--green-dark); }
+  .badge-join-closed { background: #fee2e2; color: #991b1b; }
 
   .header-actions { display: flex; gap: 8px; flex-shrink: 0; }
   .btn-primary {
@@ -222,6 +223,13 @@
     border-radius: 9px; background: #d1fae5; font-size: 13px; font-weight: 600; color: #065f46;
   }
 
+  .lock-notice {
+    background: var(--white); border: 1px solid var(--border); border-radius: 14px;
+    padding: 28px 24px; text-align: center; margin-bottom: 24px;
+  }
+  .lock-notice .lock-icon { font-size: 32px; margin-bottom: 10px; }
+  .lock-notice p { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
+
   .empty-row { text-align: center; padding: 20px 0; color: var(--text-muted); font-size: 13px; }
   .empty-row .icon { font-size: 26px; margin-bottom: 6px; display: block; }
 {% endblock %}
@@ -247,6 +255,9 @@
           {% else %}
             <span class="badge badge-upcoming">Upcoming</span>
           {% endif %}
+          {% if trip.is_full() %}
+            <span class="badge badge-join-closed">Join Closed</span>
+          {% endif %}
           {% if is_owner %}<span class="badge badge-owner">Owner</span>{% endif %}
         </div>
       </div>
@@ -258,16 +269,25 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn-danger">🗑️ Delete</button>
           </form>
-        {% elif not is_member %}
+        {% elif is_member %}
+          {# Accepted member: show Leave Trip button #}
+          <form method="POST" action="{{ url_for('trips.leave', trip_id=trip.id) }}"
+                onsubmit="return confirm('Leave this trip?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn-danger">🚪 Leave Trip</button>
+          </form>
+        {% else %}
           {% if membership and membership.status == 'pending' %}
             <button class="btn-secondary" disabled>Request Pending</button>
           {% elif membership and membership.status == 'declined' %}
             <button class="btn-secondary" disabled>Request Declined</button>
-          {% else %}
+          {% elif not trip.is_full() %}
             <form method="POST" action="{{ url_for('trips.send_request', trip_id=trip.id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button type="submit" class="btn-primary">🤝 Send Buddy Request</button>
             </form>
+          {% else %}
+            <button class="btn-secondary" disabled>Join Closed</button>
           {% endif %}
         {% endif %}
       </div>
@@ -277,11 +297,19 @@
       <div class="desc-card">{{ trip.description }}</div>
     {% endif %}
 
+    {% if not is_member %}
+    <div class="lock-notice">
+      <div class="lock-icon">🔒</div>
+      <p>Join this trip to view expenses, settlements, and member contact details.</p>
+    </div>
+    {% endif %}
+
     <div class="trip-grid">
       <!-- LEFT COLUMN -->
       <div class="left-col">
 
         <!-- EXPENSES -->
+        {% if is_member %}
         <div class="panel">
           <div class="panel-head">
             <div class="panel-title">
@@ -292,10 +320,12 @@
           </div>
           <div class="panel-body">
 
-            {% if is_member and expense_form %}
+            {% if expense_form %}
             {# ── Add Expense Form ── #}
             <form method="POST" action="{{ url_for('expenses.add', trip_id=trip.id) }}" class="expense-form-card" novalidate>
               {{ expense_form.hidden_tag() }}
+              {# Hidden paid_by_id — always current user, set server-side #}
+              {{ expense_form.paid_by_id(type="hidden") }}
               <div class="form-row">
                 <div class="form-group">
                   {{ expense_form.title.label }}
@@ -314,12 +344,7 @@
                   {{ expense_form.expense_date(id="exp_date") }}
                 </div>
               </div>
-              <div class="form-row-2">
-                <div class="form-group">
-                  {{ expense_form.paid_by_id.label }}
-                  {{ expense_form.paid_by_id(id="exp_paid_by") }}
-                </div>
-                <div></div>
+              <div style="display:flex;justify-content:flex-end;margin-top:4px;">
                 <button type="submit" class="btn-add-expense" id="btn_add_expense">＋ Add Expense</button>
               </div>
             </form>
@@ -357,12 +382,12 @@
                       <td class="td-actions">
                         {% if is_member and (exp.paid_by_id == current_user.id or is_owner) %}
                         <form method="POST"
-                              action="{{ url_for('expenses.delete', trip_id=trip.id, expense_id=exp.id) }}"
-                              style="display:inline;"
-                              onsubmit="return confirm('Remove \'{{ exp.title | replace(\"'\", \"\\\'\") }}\'?');">
-                          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                          <button type="submit" class="btn-tbl-delete" title="Delete expense">🗑</button>
-                        </form>
+      action="{{ url_for('expenses.delete', trip_id=trip.id, expense_id=exp.id) }}"
+      style="display:inline;"
+      onsubmit="return confirm('Remove this expense?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn-tbl-delete" title="Delete expense">🗑</button>
+</form>
                         {% endif %}
                       </td>
                     </tr>
@@ -375,9 +400,11 @@
             {% endif %}
           </div>
         </div>
+        {% endif %} {# end is_member expenses panel #}
 
         <!-- SETTLEMENT SUMMARY -->
-        <div class="panel">
+        {% if is_member %}
+        <div class="panel" id="settlement-summary">
           <div class="panel-head">
             <div class="panel-title">📊 Settlement Summary</div>
           </div>
@@ -422,6 +449,7 @@
             {% endif %}
           </div>
         </div>
+        {% endif %} {# end is_member settlement panel #}
 
       </div>
 

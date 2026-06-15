@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}My Expenses{% endblock %}
+
+{% block extra_styles %}
+  .myexp-page { background: var(--bg); min-height: calc(100vh - 64px); padding: 36px 48px 60px; }
+  .myexp-inner { max-width: 1080px; margin: 0 auto; }
+
+  /* PAGE HEADER */
+  .page-header { margin-bottom: 28px; }
+  .page-title  { font-size: 24px; font-weight: 900; letter-spacing: -0.02em; color: var(--text); }
+  .page-subtitle { font-size: 14px; color: var(--text-muted); margin-top: 4px; }
+
+  /* BALANCE SUMMARY CARD */
+  .balance-card {
+    background: var(--white); border: 1px solid var(--border); border-radius: 16px;
+    padding: 24px 28px; margin-bottom: 28px;
+    display: flex; align-items: center; gap: 20px;
+  }
+  .balance-icon {
+    width: 52px; height: 52px; border-radius: 14px; background: var(--green-light);
+    display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;
+  }
+  .balance-info { flex: 1; }
+  .balance-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); margin-bottom: 4px; }
+  .balance-amount { font-size: 32px; font-weight: 900; letter-spacing: -0.02em; line-height: 1; }
+  .balance-amount.positive { color: #059669; }
+  .balance-amount.negative { color: #dc2626; }
+  .balance-amount.zero     { color: var(--text-muted); }
+  .balance-sub { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+
+  /* TABLE PANEL */
+  .panel {
+    background: var(--white); border: 1px solid var(--border); border-radius: 16px; overflow: hidden;
+  }
+  .panel-head {
+    padding: 18px 22px 14px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .panel-title { font-size: 14px; font-weight: 800; color: var(--text); display: flex; align-items: center; gap: 6px; }
+  .panel-count { font-size: 11px; font-weight: 700; background: var(--green); color: white; padding: 2px 7px; border-radius: 100px; }
+
+  /* EXPENSE TABLE */
+  .exp-table-wrap { overflow-x: auto; }
+  .exp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .exp-table thead th {
+    font-size: 11px; font-weight: 700; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: .04em;
+    padding: 10px 16px; border-bottom: 1px solid var(--border);
+    text-align: left; white-space: nowrap; background: var(--bg);
+  }
+  .exp-table thead th.col-right { text-align: right; }
+  .exp-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.12s; }
+  .exp-table tbody tr:last-child { border-bottom: none; }
+  .exp-table tbody tr:hover { background: var(--bg); }
+  .exp-table td { padding: 14px 16px; vertical-align: middle; }
+
+  .td-trip-name { font-weight: 700; color: var(--text); }
+  .td-trip-name a { color: inherit; }
+  .td-trip-name a:hover { color: var(--green); }
+  .td-trip-sub  { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  .td-amount    { font-weight: 700; color: var(--text); text-align: right; white-space: nowrap; }
+  .td-balance   { font-weight: 800; text-align: right; white-space: nowrap; }
+  .td-balance.positive { color: #059669; }
+  .td-balance.negative { color: #dc2626; }
+  .td-balance.zero     { color: var(--text-muted); }
+
+  /* STATUS BADGE */
+  .badge { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 100px; }
+  .badge-settled { background: #d1fae5; color: #065f46; }
+  .badge-pending { background: #fef3c7; color: #92400e; }
+
+  /* VIEW BUTTON */
+  .btn-view {
+    font-size: 12px; font-weight: 700; color: var(--green-dark);
+    background: var(--green-light); padding: 7px 14px; border-radius: 8px;
+    display: inline-flex; align-items: center; gap: 4px;
+    transition: background 0.15s; white-space: nowrap;
+  }
+  .btn-view:hover { background: #bbf7d0; color: var(--green-dark); }
+
+  /* EMPTY STATE */
+  .empty-state {
+    background: var(--white); border: 1.5px dashed var(--border); border-radius: 16px;
+    padding: 48px 24px; text-align: center;
+  }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-state h4 { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .empty-state p  { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+  @media (max-width: 640px) {
+    .myexp-page { padding: 24px 20px 48px; }
+    .balance-card { flex-direction: column; align-items: flex-start; gap: 12px; }
+  }
+{% endblock %}
+
+{% block content %}
+<div class="myexp-page">
+  <div class="myexp-inner">
+
+    <div class="page-header">
+      <h1 class="page-title">My Expenses</h1>
+      <p class="page-subtitle">Track all your travel spending</p>
+    </div>
+
+    <!-- OVERALL PENDING BALANCE -->
+    <div class="balance-card">
+      <div class="balance-icon">💰</div>
+      <div class="balance-info">
+        <div class="balance-label">Overall Pending Balance</div>
+        {% if pending_balance > 0.009 %}
+          <div class="balance-amount positive">+₹{{ "%.2f"|format(pending_balance) }}</div>
+          <div class="balance-sub">Others owe you across unsettled trips</div>
+        {% elif pending_balance < -0.009 %}
+          <div class="balance-amount negative">−₹{{ "%.2f"|format(-pending_balance) }}</div>
+          <div class="balance-sub">You owe across unsettled trips</div>
+        {% else %}
+          <div class="balance-amount zero">₹0.00</div>
+          <div class="balance-sub">All trips are settled up 🎉</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- EXPENSES TABLE -->
+    {% if rows %}
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">
+          🧳 Trip Expenses
+          <span class="panel-count">{{ rows|length }}</span>
+        </div>
+      </div>
+      <div class="exp-table-wrap">
+        <table class="exp-table">
+          <thead>
+            <tr>
+              <th>Trip Name</th>
+              <th class="col-right">Per Person</th>
+              <th class="col-right">Balance</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+            <tr>
+              <td>
+                <div class="td-trip-name">
+                  <a href="{{ url_for('trips.detail', trip_id=row.trip.id) }}">{{ row.trip.title }}</a>
+                </div>
+                <div class="td-trip-sub">
+                  📍 {{ row.trip.destination }} &nbsp;·&nbsp;
+                  📅 {{ row.trip.start_date.strftime('%b %d') }} – {{ row.trip.end_date.strftime('%b %d, %Y') }}
+                </div>
+              </td>
+              <td class="td-amount">₹{{ "%.2f"|format(row.per_person) }}</td>
+              <td class="td-balance {% if row.balance > 0.009 %}positive{% elif row.balance < -0.009 %}negative{% else %}zero{% endif %}">
+                {% if row.balance > 0.009 %}
+                  +₹{{ "%.2f"|format(row.balance) }}
+                {% elif row.balance < -0.009 %}
+                  −₹{{ "%.2f"|format(-row.balance) }}
+                {% else %}
+                  ₹0.00
+                {% endif %}
+              </td>
+              <td>
+                {% if row.settled %}
+                  <span class="badge badge-settled">✓ All Settled</span>
+                {% else %}
+                  <span class="badge badge-pending">⏳ Pending</span>
+                {% endif %}
+              </td>
+              <td>
+                <a href="{{ url_for('trips.detail', trip_id=row.trip.id) }}#settlement-summary"
+                   class="btn-view">View →</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">🧾</div>
+      <h4>No expenses yet</h4>
+      <p>Once you join a trip and expenses are added, they'll appear here.</p>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
