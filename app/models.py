@@ -220,6 +220,26 @@ class TripMember(db.Model):
         return f'<TripMember trip={self.trip_id} user={self.user_id} status={self.status}>'
 
 
+class Settlement(db.Model):
+    __tablename__ = 'settlements'
+
+    id         = db.Column(db.Integer, primary_key=True)
+    trip_id    = db.Column(db.Integer, db.ForeignKey('trips.id'), nullable=False)
+    payer_id   = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)   # debtor
+    payee_id   = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)   # creditor
+    amount     = db.Column(db.Float, nullable=False)
+    is_settled = db.Column(db.Boolean, default=False, nullable=False)
+    settled_at = db.Column(db.DateTime, nullable=True)
+
+    trip  = db.relationship('Trip', backref=db.backref('settlements', lazy='dynamic',
+                                                        cascade='all, delete-orphan'))
+    payer = db.relationship('User', foreign_keys=[payer_id])
+    payee = db.relationship('User', foreign_keys=[payee_id])
+
+    def __repr__(self):
+        return f'<Settlement trip={self.trip_id} {self.payer_id}→{self.payee_id} ₹{self.amount} settled={self.is_settled}>'
+
+
 class Expense(db.Model):
     __tablename__ = 'expenses'
 

@@ -25,6 +25,16 @@
     display: flex; align-items: center; gap: 8px;
   }
 
+  /* GUEST BANNER */
+  .guest-banner {
+    background: #fffbeb; border: 1.5px solid #fde68a; border-radius: 12px;
+    padding: 14px 18px; margin-bottom: 18px;
+    display: flex; align-items: center; gap: 10px; font-size: 13px; color: #92400e;
+    font-weight: 600;
+  }
+  .guest-banner a { color: var(--green); font-weight: 700; }
+  .guest-banner a:hover { text-decoration: underline; }
+
   /* FILTER BAR */
   .filter-bar {
     background: var(--white); border: 1px solid var(--border); border-radius: 14px;
@@ -32,11 +42,11 @@
   }
   .filter-field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 150px; }
   .filter-field label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
-  .filter-field input {
+  .filter-field input, .filter-field select {
     padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 9px;
     font-size: 13px; font-family: inherit; color: var(--text); outline: none;
   }
-  .filter-field input:focus { border-color: var(--green); }
+  .filter-field input:focus, .filter-field select:focus { border-color: var(--green); }
   .btn-filter {
     font-size: 13px; font-weight: 700; color: white; padding: 10px 18px; border-radius: 9px;
     background: var(--green); border: none; cursor: pointer; font-family: inherit; transition: background 0.15s;
@@ -87,6 +97,13 @@
   .btn-request:hover { background: var(--green-dark); }
   .btn-pending { background: #f3f4f6; color: var(--text-muted); cursor: default; }
   .btn-view { background: var(--green-light); color: var(--green-dark); display: inline-flex; align-items: center; }
+  .btn-guest-login {
+    font-size: 12px; font-weight: 700; padding: 7px 14px; border-radius: 8px;
+    background: #fffbeb; border: 1.5px solid #fde68a; color: #92400e;
+    cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 4px;
+    transition: background 0.15s;
+  }
+  .btn-guest-login:hover { background: #fef3c7; color: #92400e; }
 
   /* EMPTY STATE */
   .empty-state {
@@ -111,12 +128,21 @@
     <div class="page-header">
       <div>
         <h1 class="page-title">Trips</h1>
-        <p class="page-subtitle">Manage your trips and find new ones to join.</p>
+        <p class="page-subtitle">
+          {% if current_user.is_authenticated %}
+            Manage your trips and find new ones to join.
+          {% else %}
+            Browse open trips — <a href="{{ url_for('auth.login') }}" style="color:var(--green);font-weight:700;">log in</a> to join or create trips.
+          {% endif %}
+        </p>
       </div>
-      <a href="{{ url_for('trips.create') }}" class="btn-primary">＋ New Trip</a>
+      {% if current_user.is_authenticated %}
+        <a href="{{ url_for('trips.create') }}" class="btn-primary">＋ New Trip</a>
+      {% endif %}
     </div>
 
-    <!-- MY TRIPS -->
+    <!-- MY TRIPS (logged-in users only) -->
+    {% if current_user.is_authenticated %}
     <div class="section">
       <div class="section-title">🧳 My Trips</div>
       {% if my_trips %}
@@ -158,10 +184,17 @@
         </div>
       {% endif %}
     </div>
+    {% endif %}
 
     <!-- BROWSE TRIPS -->
     <div class="section">
       <div class="section-title">🔍 Browse Open Trips</div>
+
+      {% if not current_user.is_authenticated %}
+      <div class="guest-banner">
+        🔒 You're browsing as a guest. <a href="{{ url_for('auth.login') }}">Log in</a> to join trips, view full details, and send buddy requests.
+      </div>
+      {% endif %}
 
       <form method="GET" action="{{ url_for('trips.index') }}" class="filter-bar">
         <div class="filter-field">
@@ -189,13 +222,21 @@
           <div class="trip-card">
             <div class="trip-icon">🧳</div>
             <div class="trip-info">
-              <div class="trip-name"><a href="{{ url_for('trips.detail', trip_id=trip.id) }}">{{ trip.title }}</a></div>
+              <div class="trip-name">
+                {% if current_user.is_authenticated %}
+                  <a href="{{ url_for('trips.detail', trip_id=trip.id) }}">{{ trip.title }}</a>
+                {% else %}
+                  <a href="{{ url_for('auth.login') }}">{{ trip.title }}</a>
+                {% endif %}
+              </div>
               <div class="trip-meta">
-                <span>🛫 {{ trip.departure_city }} → 📍 {{ trip.destination }}</span>
+                <span>📍 {{ trip.destination }}</span>
                 <span>📅 {{ trip.start_date.strftime('%b %d') }} – {{ trip.end_date.strftime('%b %d, %Y') }}</span>
                 <span>👥 {{ trip.member_count() }}/{{ trip.max_members }}</span>
                 <span>💰 ₹{{ "%.0f"|format(trip.budget_min) }}–₹{{ "%.0f"|format(trip.budget_max) }}</span>
-                <span>🙋 by {{ trip.owner.name.split()[0] }}</span>
+                {% if current_user.is_authenticated %}
+                  <span>🙋 by {{ trip.owner.name.split()[0] }}</span>
+                {% endif %}
               </div>
             </div>
             <div class="trip-right">
@@ -204,17 +245,22 @@
               {% else %}
                 <span class="badge badge-open">Open</span>
               {% endif %}
-              {% if trip.id in accepted_ids %}
-                <span class="badge badge-owner">Joined</span>
-              {% elif trip.id in pending_ids %}
-                <button class="btn-small btn-pending" disabled>Request Sent</button>
-              {% elif not trip.is_full() %}
-                <form method="POST" action="{{ url_for('trips.send_request', trip_id=trip.id) }}">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="btn-small btn-request">Send Buddy Request</button>
-                </form>
+
+              {% if current_user.is_authenticated %}
+                {% if trip.id in accepted_ids %}
+                  <span class="badge badge-owner">Joined</span>
+                {% elif trip.id in pending_ids %}
+                  <button class="btn-small btn-pending" disabled>Request Sent</button>
+                {% elif not trip.is_full() %}
+                  <form method="POST" action="{{ url_for('trips.send_request', trip_id=trip.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn-small btn-request">Send Buddy Request</button>
+                  </form>
+                {% endif %}
+                <a href="{{ url_for('trips.detail', trip_id=trip.id) }}" class="btn-small btn-view">View →</a>
+              {% else %}
+                <a href="{{ url_for('auth.login') }}" class="btn-guest-login">🔒 Login to Join</a>
               {% endif %}
-              <a href="{{ url_for('trips.detail', trip_id=trip.id) }}" class="btn-small btn-view">View →</a>
             </div>
           </div>
           {% endfor %}

@@ -223,6 +223,18 @@
     border-radius: 9px; background: #d1fae5; font-size: 13px; font-weight: 600; color: #065f46;
   }
 
+  /* Mark Settled button */
+  .btn-settle {
+    font-size: 11px; font-weight: 700; padding: 5px 12px; border-radius: 7px;
+    background: var(--green); color: white; border: none; cursor: pointer;
+    font-family: inherit; transition: background 0.15s; white-space: nowrap;
+  }
+  .btn-settle:hover { background: var(--green-dark); }
+  .badge-settled-row {
+    font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 100px;
+    background: #d1fae5; color: #065f46; display: inline-flex; align-items: center; gap: 4px;
+  }
+
   .lock-notice {
     background: var(--white); border: 1px solid var(--border); border-radius: 14px;
     padding: 28px 24px; text-align: center; margin-bottom: 24px;
@@ -432,17 +444,36 @@
                 <div class="owes-label">💸 Who pays whom</div>
                 {% if settlements %}
                   {% for t in settlements %}
-                  <div class="owes-row">
+                  {% set s = settlement_lookup.get((t.debtor.id, t.creditor.id)) %}
+                  {% set is_settled = s and s.is_settled %}
+                  <div class="owes-row" style="{% if is_settled %}opacity:0.6;{% endif %}">
                     <span class="owes-debtor">{{ t.debtor.name.split()[0] }}</span>
                     <span class="owes-arrow">pays →</span>
                     <span class="owes-creditor">{{ t.creditor.name.split()[0] }}</span>
                     <span class="owes-amount">₹{{ "%.2f"|format(t.amount) }}</span>
+                    {# Show Mark Settled only to the debtor; show badge if already settled #}
+                    {% if is_settled %}
+                      <span class="badge-settled-row">✓ Settled</span>
+                    {% elif t.debtor.id == current_user.id %}
+                      <form method="POST"
+                            action="{{ url_for('expenses.mark_settled', trip_id=trip.id) }}"
+                            style="display:inline; margin-left:4px;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="payer_id" value="{{ t.debtor.id }}">
+                        <input type="hidden" name="payee_id" value="{{ t.creditor.id }}">
+                        <input type="hidden" name="amount"   value="{{ t.amount }}">
+                        <button type="submit" class="btn-settle">Mark Settled</button>
+                      </form>
+                    {% else %}
+                      <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">Pending</span>
+                    {% endif %}
                   </div>
                   {% endfor %}
                 {% else %}
                   <div class="owes-settled">🎉 Everyone is settled up!</div>
                 {% endif %}
               </div>
+
 
             {% else %}
               <div class="empty-row"><span class="icon">⚖️</span>Settlement will appear once expenses are added.</div>

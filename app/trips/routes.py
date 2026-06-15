@@ -6,22 +6,36 @@ from datetime import date
 from app.trips import trips
 from app.trips.forms import TripForm
 from app.expenses.forms import ExpenseForm
-from app.models import Trip, TripMember, Expense, User
+from app.models import Trip, TripMember, Expense, User, Settlement
 from app.cities import GUJARAT_CITIES, NEARBY_CITIES
 from app.extensions import db
 
 
 @trips.route('/trips')
-@login_required
 def index():
-    # Trips the current user owns or has joined
-    my_trip_ids = current_user._all_trip_ids()
-    my_trips = Trip.query.filter(Trip.id.in_(my_trip_ids)).all() if my_trip_ids else []
+    my_trips = []
+    pending_ids = set()
+    accepted_ids = set()
 
-    # Browse: open public trips not already owned/joined by the user
+    if current_user.is_authenticated:
+        # Trips the current user owns or has joined
+        my_trip_ids = current_user._all_trip_ids()
+        my_trips = Trip.query.filter(Trip.id.in_(my_trip_ids)).all() if my_trip_ids else []
+
+        pending_ids = {m.trip_id for m in
+                       TripMember.query.filter_by(user_id=current_user.id, status='pending').all()}
+        accepted_ids = {m.trip_id for m in
+                        TripMember.query.filter_by(user_id=current_user.id, status='accepted').all()}
+
+        # Browse: open public trips not already owned/joined by the user
+        my_trip_ids_set = set(my_trip_ids)
+    else:
+        my_trip_ids_set = set()
+
+    # Browse: open public trips
     query = Trip.query.filter(Trip.is_public == True)  # noqa: E712
-    if my_trip_ids:
-        query = query.filter(~Trip.id.in_(my_trip_ids))
+    if my_trip_ids_set:
+        query = query.filter(~Trip.id.in_(my_trip_ids_set))
 
     destination = request.args.get('destination', '').strip()
     budget = request.args.get('budget', '').strip()
@@ -31,18 +45,12 @@ def index():
     if budget:
         try:
             b = float(budget)
-            # Show trips where user's budget falls between trip's min and max
-            query = query.filter(Trip.budget_min <= b, Trip.budget_max >= b)
+            # Show trips where user's budget >= trip's minimum budget
+            query = query.filter(Trip.budget_min <= b)
         except ValueError:
             pass
 
     browse_trips = query.order_by(Trip.start_date.asc()).all()
-
-    # Pending request trip ids for current user (to disable "request" button)
-    pending_ids = {m.trip_id for m in
-                   TripMember.query.filter_by(user_id=current_user.id, status='pending').all()}
-    accepted_ids = {m.trip_id for m in
-                     TripMember.query.filter_by(user_id=current_user.id, status='accepted').all()}
 
     return render_template('trips/index.html',
         my_trips=my_trips,
@@ -84,8 +92,12 @@ def create():
 
 
 @trips.route('/trips/<int:trip_id>')
-@login_required
 def detail(trip_id):
+    # Guests are redirected to login
+    if not current_user.is_authenticated:
+        flash('Login to view full trip details and send a buddy request.', 'error')
+        return redirect(url_for('auth.login', next=request.url))
+
     trip = Trip.query.get_or_404(trip_id)
 
     is_owner = trip.owner_id == current_user.id
@@ -107,6 +119,11 @@ def detail(trip_id):
 
     expenses_list = trip.expenses.order_by(Expense.date.desc(), Expense.created_at.desc()).all()
 
+    # Build settlement lookup: {(payer_id, payee_id): Settlement}
+    settlement_lookup = {}
+    for s in trip.settlements.all():
+        settlement_lookup[(s.payer_id, s.payee_id)] = s
+
     return render_template('trips/detail.html',
         trip=trip,
         is_owner=is_owner,
@@ -117,6 +134,7 @@ def detail(trip_id):
         expenses_list=expenses_list,
         settlement=trip.settlement_summary(),
         settlements=trip.calculate_settlements(),
+        settlement_lookup=settlement_lookup,
         today=date.today()
     )
 
