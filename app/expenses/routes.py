@@ -141,13 +141,13 @@ def my_expenses():
 
         # A trip is "fully settled" from this user's perspective only when ALL
         # settlement transactions involving them (as payer OR payee) are marked settled.
-        # This means both debtors AND creditors stay "Pending" until payment is confirmed.
         if abs(raw_balance) < 0.01:
             # User's share equals what they paid — no settlement needed
             settled = True
             unsettled_amount = 0.0
         elif raw_balance < 0:
-            # User is a debtor — check their own Settlement rows
+            # User is a DEBTOR — check their own Settlement rows.
+            # If they haven't clicked "Mark Settled" yet, no DB row exists → pending.
             unsettled_rows = Settlement.query.filter_by(
                 trip_id=trip.id, payer_id=current_user.id, is_settled=False
             ).all()
@@ -157,30 +157,45 @@ def my_expenses():
             total_rows = len(unsettled_rows) + len(settled_rows)
 
             if total_rows == 0:
-                # Debtor hasn't marked settled yet
+                # Debtor hasn't marked settled yet → pending
                 settled = False
                 unsettled_amount = abs(raw_balance)
             else:
                 settled = len(unsettled_rows) == 0
                 unsettled_amount = sum(r.amount for r in unsettled_rows)
         else:
-            # User is a creditor — they get money back.
-            # Pending until whoever owes them has marked settlement.
-            unsettled_incoming = Settlement.query.filter_by(
-                trip_id=trip.id, payee_id=current_user.id, is_settled=False
-            ).all()
-            settled_incoming = Settlement.query.filter_by(
-                trip_id=trip.id, payee_id=current_user.id, is_settled=True
-            ).all()
-            total_rows = len(unsettled_incoming) + len(settled_incoming)
+            # User is a CREDITOR — they get money back.
+            # We must check ALL expected incoming payments (from calculate_settlements()),
+            # not just the DB rows that exist. A payer who hasn't clicked "Mark Settled"
+            # yet has no DB row, so they still count as unsettled.
+            expected_settlements = trip.calculate_settlements()
+            # Find all settlement legs where current user is the creditor
+            expected_incoming = [
+                s for s in expected_settlements
+                if s['creditor'].id == current_user.id
+            ]
 
-            if total_rows == 0:
-                # No settlement records yet for this creditor — still pending
-                settled = False
-                unsettled_amount = raw_balance
+            if not expected_incoming:
+                # No one is supposed to pay this user (edge case)
+                settled = True
+                unsettled_amount = 0.0
             else:
-                settled = len(unsettled_incoming) == 0
-                unsettled_amount = sum(r.amount for r in unsettled_incoming)
+                # Build a lookup of what's been recorded in the DB
+                db_settled_payers = {
+                    s.payer_id
+                    for s in Settlement.query.filter_by(
+                        trip_id=trip.id,
+                        payee_id=current_user.id,
+                        is_settled=True
+                    ).all()
+                }
+                # A payment is settled only if the debtor has a settled DB record
+                unsettled_amount = sum(
+                    s['amount']
+                    for s in expected_incoming
+                    if s['debtor'].id not in db_settled_payers
+                )
+                settled = unsettled_amount < 0.01
 
         if not settled:
             pending_balance += unsettled_amount

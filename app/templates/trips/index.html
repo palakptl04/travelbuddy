@@ -230,7 +230,7 @@
                 {% endif %}
               </div>
               <div class="trip-meta">
-                <span>📍 {{ trip.destination }}</span>
+                <span>🛫 {{ trip.departure_city }} → 📍 {{ trip.destination }}</span>
                 <span>📅 {{ trip.start_date.strftime('%b %d') }} – {{ trip.end_date.strftime('%b %d, %Y') }}</span>
                 <span>👥 {{ trip.member_count() }}/{{ trip.max_members }}</span>
                 <span>💰 ₹{{ "%.0f"|format(trip.budget_min) }}–₹{{ "%.0f"|format(trip.budget_max) }}</span>

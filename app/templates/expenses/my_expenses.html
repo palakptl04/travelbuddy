@@ -108,17 +108,11 @@
       <div class="balance-icon">💰</div>
       <div class="balance-info">
         <div class="balance-label">Overall Pending Balance</div>
-        {% set net_pending = namespace(val=0.0) %}
-        {% for row in rows %}
-          {% if not row.settled %}
-            {% set net_pending.val = net_pending.val + row.balance %}
-          {% endif %}
-        {% endfor %}
-        {% if net_pending.val > 0.009 %}
-          <div class="balance-amount positive">+₹{{ "%.2f"|format(net_pending.val) }}</div>
+        {% if pending_balance > 0.009 %}
+          <div class="balance-amount positive">+₹{{ "%.2f"|format(pending_balance) }}</div>
           <div class="balance-sub">You are owed this amount across unsettled trips</div>
-        {% elif net_pending.val < -0.009 %}
-          <div class="balance-amount negative">−₹{{ "%.2f"|format(-net_pending.val) }}</div>
+        {% elif pending_balance < -0.009 %}
+          <div class="balance-amount negative">−₹{{ "%.2f"|format(-pending_balance) }}</div>
           <div class="balance-sub">You owe this amount across unsettled trips</div>
         {% else %}
           <div class="balance-amount zero">₹0.00</div>
@@ -155,7 +149,7 @@
                   <a href="{{ url_for('trips.detail', trip_id=row.trip.id) }}">{{ row.trip.title }}</a>
                 </div>
                 <div class="td-trip-sub">
-                  📍 {{ row.trip.destination }} &nbsp;·&nbsp;
+                  🛫 {{ row.trip.departure_city }} → 📍 {{ row.trip.destination }} &nbsp;·&nbsp;
                   📅 {{ row.trip.start_date.strftime('%b %d') }} – {{ row.trip.end_date.strftime('%b %d, %Y') }}
                 </div>
               </td>

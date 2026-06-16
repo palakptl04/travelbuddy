@@ -477,7 +477,7 @@
               <div class="trip-info">
                 <div class="trip-name">{{ trip.title }}</div>
                 <div class="trip-meta">
-                  <span>📍 {{ trip.destination }}</span>
+                  <span>🛫 {{ trip.departure_city }} → 📍 {{ trip.destination }}</span>
                   <span>📅 {{ trip.start_date.strftime('%b %d') }} – {{ trip.end_date.strftime('%b %d') }}</span>
                   <span>👥 {{ trip.member_count() }} people</span>
                 </div>
@@ -508,7 +508,7 @@
                 <div class="trip-info">
                   <div class="trip-name">{{ trip.title }}</div>
                   <div class="trip-meta">
-                    <span>📍 {{ trip.destination }}</span>
+                    <span>🛫 {{ trip.departure_city }} → 📍 {{ trip.destination }}</span>
                     <span>📅 {{ trip.start_date.strftime('%b %d, %Y') }}</span>
                     <span>👥 {{ trip.member_count() }} people</span>
                   </div>
