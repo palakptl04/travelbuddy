@@ -159,10 +159,10 @@ def my_expenses():
             if total_rows == 0:
                 # Debtor hasn't marked settled yet → pending
                 settled = False
-                unsettled_amount = abs(raw_balance)
+                unsettled_amount = -abs(raw_balance)  # negative: user owes money
             else:
                 settled = len(unsettled_rows) == 0
-                unsettled_amount = sum(r.amount for r in unsettled_rows)
+                unsettled_amount = -sum(r.amount for r in unsettled_rows)  # negative: user owes money
         else:
             # User is a CREDITOR — they get money back.
             # We must check ALL expected incoming payments (from calculate_settlements()),
@@ -198,7 +198,7 @@ def my_expenses():
                 settled = unsettled_amount < 0.01
 
         if not settled:
-            pending_balance += unsettled_amount
+            pending_balance += unsettled_amount  # negative for debtors, positive for creditors
 
         rows.append({
             'trip':       trip,
