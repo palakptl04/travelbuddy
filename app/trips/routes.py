@@ -10,6 +10,8 @@ from app.models import Trip, TripMember, Expense, User, Settlement
 from app.cities import GUJARAT_CITIES, NEARBY_CITIES
 from app.extensions import db
 
+BROWSE_PER_PAGE = 10
+
 
 @trips.route('/trips')
 def index():
@@ -39,22 +41,26 @@ def index():
 
     destination = request.args.get('destination', '').strip()
     budget = request.args.get('budget', '').strip()
+    page = request.args.get('page', 1, type=int)
 
     if destination:
         query = query.filter(Trip.destination == destination)
     if budget:
         try:
             b = float(budget)
-            # Show trips where user's budget >= trip's minimum budget
             query = query.filter(Trip.budget_min <= b)
         except ValueError:
             pass
 
-    browse_trips = query.order_by(Trip.start_date.asc()).all()
+    pagination = query.order_by(Trip.start_date.asc()).paginate(
+        page=page, per_page=BROWSE_PER_PAGE, error_out=False
+    )
+    browse_trips = pagination.items
 
     return render_template('trips/index.html',
         my_trips=my_trips,
         browse_trips=browse_trips,
+        pagination=pagination,
         pending_ids=pending_ids,
         accepted_ids=accepted_ids,
         destination=destination,
@@ -98,7 +104,7 @@ def detail(trip_id):
         flash('Login to view full trip details and send a buddy request.', 'error')
         return redirect(url_for('auth.login', next=request.url))
 
-    trip = Trip.query.get_or_404(trip_id)
+    trip = db.get_or_404(Trip, trip_id)
 
     is_owner = trip.owner_id == current_user.id
     membership = TripMember.query.filter_by(trip_id=trip.id, user_id=current_user.id).first()
@@ -111,9 +117,7 @@ def detail(trip_id):
     expense_form = None
     if is_member:
         expense_form = ExpenseForm()
-        # paid_by is always current user — set choices to just the current user
         expense_form.paid_by_id.choices = [(current_user.id, current_user.name)]
-        # Pre-fill today's date
         if not expense_form.expense_date.data:
             expense_form.expense_date.data = date.today()
 
@@ -142,7 +146,7 @@ def detail(trip_id):
 @trips.route('/trips/<int:trip_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit(trip_id):
-    trip = Trip.query.get_or_404(trip_id)
+    trip = db.get_or_404(Trip, trip_id)
     if trip.owner_id != current_user.id:
         flash('Not authorised to edit this trip.', 'error')
         return redirect(url_for('trips.detail', trip_id=trip.id))
@@ -168,7 +172,7 @@ def edit(trip_id):
 @trips.route('/trips/<int:trip_id>/delete', methods=['POST'])
 @login_required
 def delete(trip_id):
-    trip = Trip.query.get_or_404(trip_id)
+    trip = db.get_or_404(Trip, trip_id)
     if trip.owner_id != current_user.id:
         flash('Not authorised to delete this trip.', 'error')
         return redirect(url_for('trips.detail', trip_id=trip.id))
@@ -182,7 +186,7 @@ def delete(trip_id):
 @trips.route('/trips/<int:trip_id>/request', methods=['POST'])
 @login_required
 def send_request(trip_id):
-    trip = Trip.query.get_or_404(trip_id)
+    trip = db.get_or_404(Trip, trip_id)
 
     if trip.owner_id == current_user.id:
         flash("You can't send a buddy request to your own trip.", 'error')
@@ -207,8 +211,8 @@ def send_request(trip_id):
 @trips.route('/trips/<int:trip_id>/request/<int:member_id>/accept', methods=['POST'])
 @login_required
 def accept_request(trip_id, member_id):
-    trip = Trip.query.get_or_404(trip_id)
-    member = TripMember.query.get_or_404(member_id)
+    trip = db.get_or_404(Trip, trip_id)
+    member = db.get_or_404(TripMember, member_id)
 
     if trip.owner_id != current_user.id or member.trip_id != trip.id:
         flash('Not authorised.', 'error')
@@ -227,8 +231,8 @@ def accept_request(trip_id, member_id):
 @trips.route('/trips/<int:trip_id>/request/<int:member_id>/decline', methods=['POST'])
 @login_required
 def decline_request(trip_id, member_id):
-    trip = Trip.query.get_or_404(trip_id)
-    member = TripMember.query.get_or_404(member_id)
+    trip = db.get_or_404(Trip, trip_id)
+    member = db.get_or_404(TripMember, member_id)
 
     if trip.owner_id != current_user.id or member.trip_id != trip.id:
         flash('Not authorised.', 'error')
@@ -243,7 +247,7 @@ def decline_request(trip_id, member_id):
 @trips.route('/trips/<int:trip_id>/leave', methods=['POST'])
 @login_required
 def leave(trip_id):
-    trip = Trip.query.get_or_404(trip_id)
+    trip = db.get_or_404(Trip, trip_id)
 
     if trip.owner_id == current_user.id:
         flash('Trip owner cannot leave. Delete the trip instead.', 'error')

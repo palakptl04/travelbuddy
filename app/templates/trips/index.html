@@ -114,6 +114,26 @@
   .empty-state h4 { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
   .empty-state p { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.55; }
 
+  /* PAGINATION */
+  .pagination {
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+    margin-top: 20px; flex-wrap: wrap;
+  }
+  .page-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 36px; height: 36px; padding: 0 10px;
+    border-radius: 9px; border: 1.5px solid var(--border);
+    background: var(--white); color: var(--text); font-size: 13px; font-weight: 600;
+    font-family: inherit; cursor: pointer; text-decoration: none;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+  }
+  .page-btn:hover { border-color: var(--green); color: var(--green); background: var(--green-light); }
+  .page-btn.active {
+    background: var(--green); border-color: var(--green); color: white; cursor: default;
+  }
+  .page-btn.disabled { opacity: 0.4; pointer-events: none; }
+  .page-info { font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 8px; }
+
   @media (max-width: 640px) {
     .trips-page { padding: 24px 20px 48px; }
     .trip-card { flex-wrap: wrap; }
@@ -272,6 +292,44 @@
           <p>Try adjusting your filters, or check back later for new trips.</p>
         </div>
       {% endif %}
+
+      {% if pagination and pagination.pages > 1 %}
+      <nav class="pagination" aria-label="Browse trips pagination">
+        <!-- Previous -->
+        {% if pagination.has_prev %}
+          <a href="{{ url_for('trips.index', page=pagination.prev_num, destination=destination, budget=budget) }}"
+             class="page-btn" aria-label="Previous page">‹</a>
+        {% else %}
+          <span class="page-btn disabled" aria-disabled="true">‹</span>
+        {% endif %}
+
+        <!-- Page numbers -->
+        {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+          {% if p %}
+            {% if p == pagination.page %}
+              <span class="page-btn active" aria-current="page">{{ p }}</span>
+            {% else %}
+              <a href="{{ url_for('trips.index', page=p, destination=destination, budget=budget) }}"
+                 class="page-btn">{{ p }}</a>
+            {% endif %}
+          {% else %}
+            <span class="page-btn disabled" aria-hidden="true">…</span>
+          {% endif %}
+        {% endfor %}
+
+        <!-- Next -->
+        {% if pagination.has_next %}
+          <a href="{{ url_for('trips.index', page=pagination.next_num, destination=destination, budget=budget) }}"
+             class="page-btn" aria-label="Next page">›</a>
+        {% else %}
+          <span class="page-btn disabled" aria-disabled="true">›</span>
+        {% endif %}
+      </nav>
+      <p class="page-info">
+        Showing {{ ((pagination.page - 1) * pagination.per_page) + 1 }}–{{ [pagination.page * pagination.per_page, pagination.total] | min }} of {{ pagination.total }} trips
+      </p>
+      {% endif %}
+
     </div>
 
   </div>

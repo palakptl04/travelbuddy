@@ -1,11 +1,12 @@
 from app.extensions import db, login_manager
 from flask_login import UserMixin
 from datetime import datetime, timezone
+from sqlalchemy import select
 
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 
 class User(db.Model, UserMixin):
@@ -32,26 +33,38 @@ class User(db.Model, UserMixin):
         return f'<User {self.email}>'
 
     def get_active_trips(self):
+        """All active trips the user owns or has been accepted into — single query."""
         from sqlalchemy import or_
+        # Trips owned by user with status active
         owned = Trip.query.filter_by(owner_id=self.id, status='active').all()
-        joined_ids = [m.trip_id for m in
-                      TripMember.query.filter_by(user_id=self.id, status='accepted').all()]
-        joined = Trip.query.filter(
-            Trip.id.in_(joined_ids),
-            Trip.status == 'active',
-            Trip.owner_id != self.id
-        ).all()
+        # Trips the user is an accepted member of (not owner)
+        joined = (
+            Trip.query
+            .join(TripMember, TripMember.trip_id == Trip.id)
+            .filter(
+                TripMember.user_id == self.id,
+                TripMember.status == 'accepted',
+                Trip.status == 'active',
+                Trip.owner_id != self.id
+            )
+            .all()
+        )
         return owned + joined
 
     def get_upcoming_trips(self):
+        """All upcoming trips the user owns or has been accepted into — single query."""
         owned = Trip.query.filter_by(owner_id=self.id, status='upcoming').all()
-        joined_ids = [m.trip_id for m in
-                      TripMember.query.filter_by(user_id=self.id, status='accepted').all()]
-        joined = Trip.query.filter(
-            Trip.id.in_(joined_ids),
-            Trip.status == 'upcoming',
-            Trip.owner_id != self.id
-        ).all()
+        joined = (
+            Trip.query
+            .join(TripMember, TripMember.trip_id == Trip.id)
+            .filter(
+                TripMember.user_id == self.id,
+                TripMember.status == 'accepted',
+                Trip.status == 'upcoming',
+                Trip.owner_id != self.id
+            )
+            .all()
+        )
         return owned + joined
 
     def get_pending_requests(self):
@@ -63,13 +76,17 @@ class User(db.Model, UserMixin):
         ).all()
 
     def get_total_balance(self):
-        """Net amount owed across all trips (positive = others owe you)."""
+        """Net amount owed across all trips (positive = others owe you).
+        Avoids N+1 by loading all trips in a single query.
+        """
         total = 0.0
         all_trip_ids = self._all_trip_ids()
-        for tid in all_trip_ids:
-            trip = Trip.query.get(tid)
-            if trip:
-                total += trip.balance_for(self.id)
+        if not all_trip_ids:
+            return 0.0
+        # Single query to fetch all relevant trips
+        trips = Trip.query.filter(Trip.id.in_(all_trip_ids)).all()
+        for trip in trips:
+            total += trip.balance_for(self.id)
         return round(total, 2)
 
     def _all_trip_ids(self):
@@ -81,6 +98,10 @@ class User(db.Model, UserMixin):
 
 class Trip(db.Model):
     __tablename__ = 'trips'
+    __table_args__ = (
+        db.Index('ix_trips_owner_status', 'owner_id', 'status'),
+        db.Index('ix_trips_public_start', 'is_public', 'start_date'),
+    )
 
     id          = db.Column(db.Integer, primary_key=True)
     owner_id    = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
@@ -206,6 +227,11 @@ class Trip(db.Model):
 
 class TripMember(db.Model):
     __tablename__ = 'trip_members'
+    __table_args__ = (
+        db.Index('ix_trip_members_user_status', 'user_id', 'status'),
+        db.Index('ix_trip_members_trip_status', 'trip_id', 'status'),
+        db.UniqueConstraint('trip_id', 'user_id', name='uq_trip_member'),
+    )
 
     id         = db.Column(db.Integer, primary_key=True)
     trip_id    = db.Column(db.Integer, db.ForeignKey('trips.id'), nullable=False)
@@ -222,6 +248,10 @@ class TripMember(db.Model):
 
 class Settlement(db.Model):
     __tablename__ = 'settlements'
+    __table_args__ = (
+        db.Index('ix_settlements_trip_payer', 'trip_id', 'payer_id'),
+        db.Index('ix_settlements_trip_payee', 'trip_id', 'payee_id'),
+    )
 
     id         = db.Column(db.Integer, primary_key=True)
     trip_id    = db.Column(db.Integer, db.ForeignKey('trips.id'), nullable=False)
@@ -242,6 +272,10 @@ class Settlement(db.Model):
 
 class Expense(db.Model):
     __tablename__ = 'expenses'
+    __table_args__ = (
+        db.Index('ix_expenses_trip_paid', 'trip_id', 'paid_by_id'),
+        db.Index('ix_expenses_trip_date', 'trip_id', 'date'),
+    )
 
     id          = db.Column(db.Integer, primary_key=True)
     trip_id     = db.Column(db.Integer, db.ForeignKey('trips.id'), nullable=False)

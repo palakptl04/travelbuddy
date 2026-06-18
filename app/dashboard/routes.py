@@ -4,6 +4,7 @@ from app.dashboard import dashboard
 from app.models import Trip, TripMember, Expense, User
 from app.extensions import db
 from datetime import date
+from sqlalchemy import func
 
 
 @dashboard.route('/dashboard')
@@ -43,7 +44,7 @@ def index():
 @dashboard.route('/dashboard/request/<int:member_id>/accept', methods=['POST'])
 @login_required
 def accept_request(member_id):
-    member = TripMember.query.get_or_404(member_id)
+    member = db.get_or_404(TripMember, member_id)
     if member.trip.owner_id != current_user.id:
         flash('Not authorised.', 'error')
         return redirect(url_for('dashboard.index'))
@@ -56,7 +57,7 @@ def accept_request(member_id):
 @dashboard.route('/dashboard/request/<int:member_id>/decline', methods=['POST'])
 @login_required
 def decline_request(member_id):
-    member = TripMember.query.get_or_404(member_id)
+    member = db.get_or_404(TripMember, member_id)
     if member.trip.owner_id != current_user.id:
         flash('Not authorised.', 'error')
         return redirect(url_for('dashboard.index'))
@@ -67,15 +68,28 @@ def decline_request(member_id):
 
 
 def _count_unique_buddies(user):
+    """Count unique travel buddies using a single aggregated query (no N+1)."""
     all_trip_ids = user._all_trip_ids()
     if not all_trip_ids:
         return 0
-    members = TripMember.query.filter(
-        TripMember.trip_id.in_(all_trip_ids),
-        TripMember.status == 'accepted',
-        TripMember.user_id != user.id
-    ).all()
-    owners = [Trip.query.get(tid).owner_id for tid in all_trip_ids
-              if Trip.query.get(tid) and Trip.query.get(tid).owner_id != user.id]
-    unique = set([m.user_id for m in members] + owners)
-    return len(unique)
+
+    # Count accepted members across all user's trips (excluding self)
+    member_user_ids = {
+        m.user_id
+        for m in TripMember.query.filter(
+            TripMember.trip_id.in_(all_trip_ids),
+            TripMember.status == 'accepted',
+            TripMember.user_id != user.id
+        ).all()
+    }
+
+    # Also count owners of trips the user has joined (excluding self)
+    owner_ids = {
+        t.owner_id
+        for t in Trip.query.filter(
+            Trip.id.in_(all_trip_ids),
+            Trip.owner_id != user.id
+        ).all()
+    }
+
+    return len(member_user_ids | owner_ids)
