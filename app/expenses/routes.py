@@ -28,6 +28,16 @@ def add(trip_id):
         flash('Only trip members can add expenses.', 'error')
         return redirect(url_for('trips.detail', trip_id=trip.id))
 
+    # Expenses are only allowed after joining closes (1 day before trip starts).
+    # This prevents members who join later from distorting existing splits.
+    if not trip.joining_closed:
+        flash(
+            'Expenses can only be added after joining closes '
+            '(1 day before the trip starts).',
+            'error'
+        )
+        return redirect(url_for('trips.detail', trip_id=trip.id))
+
     form = ExpenseForm()
     # Paid By is always the current logged-in user — force choices to just self
     form.paid_by_id.choices = [(current_user.id, current_user.name)]
@@ -134,59 +144,60 @@ def my_expenses():
     rows = []
     pending_balance = 0.0
     for trip in trips_list:
-        # Calculate raw balance: paid - share
-        # positive = gets back money, negative = owes money, zero = even
         raw_balance = trip.balance_for(current_user.id)
         per_person  = trip.your_share(current_user.id)
 
-        # A trip is "fully settled" from this user's perspective only when ALL
-        # settlement transactions involving them (as payer OR payee) are marked settled.
-        if abs(raw_balance) < 0.01:
-            # User's share equals what they paid — no settlement needed
+        # -----------------------------------------------------------------
+        # Correct settlement status: drive purely from Settlement records
+        # against the computed transfer list, NOT from raw_balance alone.
+        #
+        # Bug that was fixed: Palak pays Khushi ₹390 (settled) and owes
+        # Ruhi ₹90 (not settled).  Palak's raw balance could be 0 because
+        # she happened to pay exactly her economic share, but she still has
+        # an unsettled transfer to Ruhi.  The old code short-circuited on
+        # raw_balance==0 and wrongly called the trip fully settled.
+        # -----------------------------------------------------------------
+        computed_transfers = trip.calculate_settlements()
+
+        # Rows where current user is the debtor (must pay someone)
+        my_debts = [t for t in computed_transfers if t['debtor'].id == current_user.id]
+        # Rows where current user is the creditor (expects payment)
+        my_credits = [t for t in computed_transfers if t['creditor'].id == current_user.id]
+
+        if not my_debts and not my_credits:
+            # User has no transfer obligation in this trip
             settled = True
             unsettled_amount = 0.0
-        elif raw_balance < 0:
-            # User is a DEBTOR — check their own Settlement rows.
-            unsettled_rows = Settlement.query.filter_by(
-                trip_id=trip.id, payer_id=current_user.id, is_settled=False
-            ).all()
-            settled_rows = Settlement.query.filter_by(
-                trip_id=trip.id, payer_id=current_user.id, is_settled=True
-            ).all()
-            total_rows = len(unsettled_rows) + len(settled_rows)
-
-            if total_rows == 0:
-                settled = False
-                unsettled_amount = -abs(raw_balance)
-            else:
-                settled = len(unsettled_rows) == 0
-                unsettled_amount = -sum(r.amount for r in unsettled_rows)
         else:
-            # User is a CREDITOR — check all expected incoming payments.
-            expected_settlements = trip.calculate_settlements()
-            expected_incoming = [
-                s for s in expected_settlements
-                if s['creditor'].id == current_user.id
-            ]
+            # Fetch all settled Settlement records involving this user in this trip
+            settled_payer_ids = {
+                s.payer_id
+                for s in Settlement.query.filter_by(
+                    trip_id=trip.id, payee_id=current_user.id, is_settled=True
+                ).all()
+            }
+            settled_payee_ids = {
+                s.payee_id
+                for s in Settlement.query.filter_by(
+                    trip_id=trip.id, payer_id=current_user.id, is_settled=True
+                ).all()
+            }
 
-            if not expected_incoming:
-                settled = True
-                unsettled_amount = 0.0
-            else:
-                db_settled_payers = {
-                    s.payer_id
-                    for s in Settlement.query.filter_by(
-                        trip_id=trip.id,
-                        payee_id=current_user.id,
-                        is_settled=True
-                    ).all()
-                }
-                unsettled_amount = sum(
-                    s['amount']
-                    for s in expected_incoming
-                    if s['debtor'].id not in db_settled_payers
-                )
-                settled = unsettled_amount < 0.01
+            # An individual transfer is settled only if the Settlement record exists
+            # and is_settled=True for that exact (payer, payee) pair.
+            unsettled_debt_amount = sum(
+                t['amount'] for t in my_debts
+                if t['creditor'].id not in settled_payee_ids
+            )
+            unsettled_credit_amount = sum(
+                t['amount'] for t in my_credits
+                if t['debtor'].id not in settled_payer_ids
+            )
+
+            # From the user's perspective: pending balance is what they still owe.
+            # If they're a creditor with outstanding amounts, that's positive (owed to them).
+            unsettled_amount = unsettled_credit_amount - unsettled_debt_amount
+            settled = (unsettled_debt_amount < 0.01 and unsettled_credit_amount < 0.01)
 
         if not settled:
             pending_balance += unsettled_amount

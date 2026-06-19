@@ -164,3 +164,124 @@ class TestSettlementAlgorithm:
             total_spent = trip.total_spent()
 
         assert round(total_paid, 2) == round(total_spent, 2)
+
+
+# ---------------------------------------------------------------------------
+# Settlement Bug Regression — partial settlement must not show "all settled"
+# ---------------------------------------------------------------------------
+
+class TestPartialSettlementBug:
+    """
+    Regression test for the settlement bug:
+
+    Setup: 3 members — Palak (owner), Khushi, Ruhi.
+    Palak pays ₹480 total (all expenses).  Share = ₹160 each.
+    calculate_settlements() produces:
+        Khushi → Palak ₹160
+        Ruhi   → Palak ₹160
+
+    Khushi marks hers settled.  Ruhi does NOT.
+
+    From Palak's perspective:
+    - settled should be False (Ruhi's ₹160 still pending)
+    - pending_balance should be +₹160 (she is still owed)
+    """
+
+    def test_partial_settlement_not_all_settled(self, app):
+        from app.models import Settlement
+        from app.expenses.routes import my_expenses
+        from datetime import timezone
+
+        with app.app_context():
+            palak = _make_user('Palak', 'palak@bug.com')
+            khushi = _make_user('Khushi', 'khushi@bug.com')
+            ruhi = _make_user('Ruhi', 'ruhi@bug.com')
+
+            trip = _make_trip(palak)
+            _add_member(trip, khushi)
+            _add_member(trip, ruhi)
+
+            # Palak pays everything
+            _add_expense(trip, palak, 480.0)   # 3 members → ₹160 each
+            _db.session.commit()
+
+            # Verify calculate_settlements gives 2 transfers both to Palak
+            transfers = trip.calculate_settlements()
+            assert len(transfers) == 2
+            for t in transfers:
+                assert t['creditor'].id == palak.id
+                assert round(t['amount'], 2) == 160.0
+
+            # Khushi settles her debt (payer=khushi, payee=palak)
+            khushi_transfer = next(t for t in transfers if t['debtor'].id == khushi.id)
+            s = Settlement(
+                trip_id=trip.id,
+                payer_id=khushi.id,
+                payee_id=palak.id,
+                amount=khushi_transfer['amount'],
+                is_settled=True,
+            )
+            _db.session.add(s)
+            _db.session.commit()
+
+            # Now check from Palak's perspective using the fixed my_expenses logic
+            computed = trip.calculate_settlements()
+            my_credits = [t for t in computed if t['creditor'].id == palak.id]
+            settled_payer_ids = {
+                s.payer_id
+                for s in Settlement.query.filter_by(
+                    trip_id=trip.id, payee_id=palak.id, is_settled=True
+                ).all()
+            }
+            unsettled_credit = sum(
+                t['amount'] for t in my_credits
+                if t['debtor'].id not in settled_payer_ids
+            )
+
+            # Ruhi's ₹160 is still unsettled — palak is not fully settled
+            assert unsettled_credit > 0.01, \
+                f"Expected unsettled credit > 0, got {unsettled_credit}"
+            assert round(unsettled_credit, 2) == 160.0
+
+    def test_full_settlement_shows_settled(self, app):
+        """When ALL transfers are marked settled, the trip IS fully settled."""
+        from app.models import Settlement
+
+        with app.app_context():
+            palak = _make_user('Palak2', 'palak2@bug.com')
+            khushi = _make_user('Khushi2', 'khushi2@bug.com')
+            ruhi = _make_user('Ruhi2', 'ruhi2@bug.com')
+
+            trip = _make_trip(palak)
+            _add_member(trip, khushi)
+            _add_member(trip, ruhi)
+            _add_expense(trip, palak, 480.0)
+            _db.session.commit()
+
+            transfers = trip.calculate_settlements()
+            # Mark ALL transfers settled
+            for t in transfers:
+                s = Settlement(
+                    trip_id=trip.id,
+                    payer_id=t['debtor'].id,
+                    payee_id=t['creditor'].id,
+                    amount=t['amount'],
+                    is_settled=True,
+                )
+                _db.session.add(s)
+            _db.session.commit()
+
+            computed = trip.calculate_settlements()
+            my_credits = [t for t in computed if t['creditor'].id == palak.id]
+            settled_payer_ids = {
+                s.payer_id
+                for s in Settlement.query.filter_by(
+                    trip_id=trip.id, payee_id=palak.id, is_settled=True
+                ).all()
+            }
+            unsettled_credit = sum(
+                t['amount'] for t in my_credits
+                if t['debtor'].id not in settled_payer_ids
+            )
+            assert unsettled_credit < 0.01, \
+                f"Expected fully settled (unsettled_credit≈0), got {unsettled_credit}"

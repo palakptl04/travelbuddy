@@ -6,7 +6,7 @@ from datetime import date
 from app.trips import trips
 from app.trips.forms import TripForm
 from app.expenses.forms import ExpenseForm
-from app.models import Trip, TripMember, Expense, User, Settlement
+from app.models import Trip, TripMember, Expense, User, Settlement  # noqa: F401 (Expense kept for potential future use)
 from app.cities import GUJARAT_CITIES, NEARBY_CITIES
 from app.extensions import db
 
@@ -191,6 +191,10 @@ def send_request(trip_id):
         flash("You can't send a buddy request to your own trip.", 'error')
         return redirect(url_for('trips.detail', trip_id=trip.id))
 
+    if trip.joining_closed:
+        flash('Joining is closed for this trip (closes 1 day before it starts).', 'error')
+        return redirect(url_for('trips.detail', trip_id=trip.id))
+
     if trip.is_full():
         flash('This trip is already full.', 'error')
         return redirect(url_for('trips.detail', trip_id=trip.id))
@@ -215,6 +219,10 @@ def accept_request(trip_id, member_id):
 
     if trip.owner_id != current_user.id or member.trip_id != trip.id:
         flash('Not authorised.', 'error')
+        return redirect(url_for('trips.detail', trip_id=trip_id))
+
+    if trip.joining_closed:
+        flash('Joining is closed for this trip. No new members can be accepted.', 'error')
         return redirect(url_for('trips.detail', trip_id=trip_id))
 
     if trip.is_full():
@@ -259,14 +267,11 @@ def leave(trip_id):
         flash('You are not an accepted member of this trip.', 'error')
         return redirect(url_for('trips.detail', trip_id=trip_id))
 
-    # Block if user has any expenses recorded in this trip
-    user_expense_count = Expense.query.filter_by(
-        trip_id=trip_id, paid_by_id=current_user.id
-    ).count()
-    if user_expense_count > 0:
+    # Block leaving once joining has closed — the trip roster is locked.
+    if trip.joining_closed:
         flash(
-            'You cannot leave this trip because you have recorded expenses. '
-            'Remove your expenses first, then try again.',
+            'You cannot leave this trip once joining has closed '
+            '(1 day before the trip starts).',
             'error'
         )
         return redirect(url_for('trips.detail', trip_id=trip_id))

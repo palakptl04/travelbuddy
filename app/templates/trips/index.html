@@ -180,9 +180,9 @@
               </div>
             </div>
             <div class="trip-right">
-              {% if trip.status == 'active' %}
-                <span class="badge badge-active">Active</span>
-              {% elif trip.status == 'completed' %}
+              {% if trip.computed_status == 'ongoing' %}
+                <span class="badge badge-active">Ongoing</span>
+              {% elif trip.computed_status == 'completed' %}
                 <span class="badge badge-completed">Completed</span>
               {% else %}
                 <span class="badge badge-upcoming">Upcoming</span>
@@ -260,7 +260,7 @@
               </div>
             </div>
             <div class="trip-right">
-              {% if trip.is_full() %}
+              {% if trip.joining_closed %}
                 <span class="badge badge-join-closed">Join Closed</span>
               {% else %}
                 <span class="badge badge-open">Open</span>
@@ -271,7 +271,7 @@
                   <span class="badge badge-owner">Joined</span>
                 {% elif trip.id in pending_ids %}
                   <button class="btn-small btn-pending" disabled>Request Sent</button>
-                {% elif not trip.is_full() %}
+                {% elif not trip.joining_closed and not trip.is_full() %}
                   <form method="POST" action="{{ url_for('trips.send_request', trip_id=trip.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn-small btn-request">Send Buddy Request</button>

@@ -1,6 +1,6 @@
 from app.extensions import db, login_manager
 from flask_login import UserMixin
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date as _date, timedelta
 from sqlalchemy import select
 
 
@@ -126,6 +126,35 @@ class Trip(db.Model):
 
     def __repr__(self):
         return f'<Trip {self.title}>'
+
+    # ------------------------------------------------------------------ #
+    # Date-derived computed properties (never stored in DB)              #
+    # ------------------------------------------------------------------ #
+
+    @property
+    def computed_status(self):
+        """Return 'upcoming', 'ongoing', or 'completed' based on today's date.
+
+        - upcoming  : start_date > today
+        - ongoing   : start_date <= today <= end_date
+        - completed : end_date < today
+        """
+        today = _date.today()
+        if today < self.start_date:
+            return 'upcoming'
+        elif today <= self.end_date:
+            return 'ongoing'
+        else:
+            return 'completed'
+
+    @property
+    def joining_closed(self):
+        """Joining closes 1 day before the trip starts.
+
+        Returns True when today >= start_date - 1 day.
+        Example: start_date = Jun 20  →  joining closes on Jun 19.
+        """
+        return _date.today() >= (self.start_date - timedelta(days=1))
 
     def member_count(self):
         return self.members.filter_by(status='accepted').count() + 1  # +1 for owner
