@@ -191,7 +191,7 @@ class TestJoinRequest:
         _, owner = auth_client
 
         with app.app_context():
-            # Create the trip
+            # Create the trip owned by the authenticated test user
             tomorrow = date.today() + timedelta(days=1)
             trip = Trip(
                 owner_id=owner.id,
@@ -212,17 +212,28 @@ class TestJoinRequest:
             trip_id = trip.id
             joiner_id = joiner.id
 
-        # Login as joiner
+        # Log in as the joiner via the real login route.
+        # This works correctly because conftest.py overrides pytest-flask's
+        # _push_request_context with a no-op, so each request gets its own
+        # isolated app+request context and Flask-Login reads current_user
+        # fresh from the session cookie on every call.
         joiner_client = app.test_client()
-        joiner_client.post('/auth/login', data={
-            'email': 'joiner@example.com',
-            'password': 'Pass2!',
-        })
-        resp = joiner_client.post(f'/trips/{trip_id}/request', follow_redirects=True)
+        joiner_client.post(
+            '/auth/login',
+            data={'email': 'joiner@example.com', 'password': 'Pass2!'},
+            follow_redirects=True,
+        )
+
+        resp = joiner_client.post(
+            f'/trips/{trip_id}/request',
+            follow_redirects=True,
+        )
         assert resp.status_code == 200
 
         with app.app_context():
             mem = TripMember.query.filter_by(trip_id=trip_id, user_id=joiner_id).first()
             mem_status = mem.status if mem else None
-        assert mem is not None
+        assert mem is not None, "TripMember was not created — join request failed"
         assert mem_status == 'pending'
+
+

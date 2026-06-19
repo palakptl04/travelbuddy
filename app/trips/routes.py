@@ -187,7 +187,6 @@ def delete(trip_id):
 @login_required
 def send_request(trip_id):
     trip = db.get_or_404(Trip, trip_id)
-
     if trip.owner_id == current_user.id:
         flash("You can't send a buddy request to your own trip.", 'error')
         return redirect(url_for('trips.detail', trip_id=trip.id))
