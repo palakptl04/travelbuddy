@@ -100,8 +100,8 @@ with app.app_context():
     db.session.add_all(expenses)
     db.session.commit()
 
-    print('✓ Database seeded successfully.\n')
+    print('[OK] Database seeded successfully.\n')
     print('Test accounts:')
-    print('  aryan@test.com  / test123  — 1 active trip, 1 upcoming, owner')
-    print('  priya@test.com  / test123  — member of Gujarat trip, owns Goa trip')
-    print('  rohan@test.com  / test123  — pending request on Gujarat trip')
+    print('  aryan@test.com  / test123  -- 1 active trip, 1 upcoming, owner')
+    print('  priya@test.com  / test123  -- member of Gujarat trip, owns Goa trip')
+    print('  rohan@test.com  / test123  -- pending request on Gujarat trip')
