@@ -9,6 +9,26 @@ def load_user(user_id):
     return db.session.get(User, int(user_id))
 
 
+# ---------------------------------------------------------------------------
+# Extensible contact-encryption hook
+# ---------------------------------------------------------------------------
+# Currently stores data as plain text.  To enable encryption at rest, replace
+# the two methods below with Fernet/KMS implementations — no model changes needed.
+
+def _encrypt_contact(value: str) -> str:
+    """Encrypt a contact field before storing. Override for real encryption."""
+    return value or ''
+
+
+def _decrypt_contact(value: str) -> str:
+    """Decrypt a contact field after loading. Override for real encryption."""
+    return value or ''
+
+
+# ---------------------------------------------------------------------------
+# User
+# ---------------------------------------------------------------------------
+
 class User(db.Model, UserMixin):
     __tablename__ = 'users'
 
@@ -32,19 +52,35 @@ class User(db.Model, UserMixin):
     def __repr__(self):
         return f'<User {self.email}>'
 
+    # ------------------------------------------------------------------ #
+    # Contact encryption hooks (extensible — swap for real crypto later) #
+    # ------------------------------------------------------------------ #
+
+    def get_phone(self) -> str:
+        """Return decrypted phone."""
+        return _decrypt_contact(self.phone)
+
+    def get_email(self) -> str:
+        """Return decrypted email (email is also the login key — kept plain)."""
+        return _decrypt_contact(self.email)
+
+    def set_phone(self, value: str):
+        self.phone = _encrypt_contact(value)
+
+    # ------------------------------------------------------------------ #
+    # Dashboard helpers                                                    #
+    # ------------------------------------------------------------------ #
+
     def get_active_trips(self):
-        """All active trips the user owns or has been accepted into — single query."""
-        from sqlalchemy import or_
-        # Trips owned by user with status ACTIVE
+        """All active trips the user owns or has been accepted into."""
         owned = Trip.query.filter_by(owner_id=self.id, status='ACTIVE').all()
-        # Trips the user is an accepted member of (not owner)
         joined = (
             Trip.query
             .join(TripMember, TripMember.trip_id == Trip.id)
             .filter(
                 TripMember.user_id == self.id,
                 TripMember.status == 'accepted',
-                Trip.status == 'active',
+                Trip.status == 'ACTIVE',
                 Trip.owner_id != self.id
             )
             .all()
@@ -80,14 +116,11 @@ class User(db.Model, UserMixin):
         ).all()
 
     def get_total_balance(self):
-        """Net amount owed across all trips (positive = others owe you).
-        Avoids N+1 by loading all trips in a single query.
-        """
+        """Net amount owed across all trips (positive = others owe you)."""
         total = 0.0
         all_trip_ids = self._all_trip_ids()
         if not all_trip_ids:
             return 0.0
-        # Single query to fetch all relevant trips
         trips = Trip.query.filter(Trip.id.in_(all_trip_ids)).all()
         for trip in trips:
             total += trip.balance_for(self.id)
@@ -99,6 +132,10 @@ class User(db.Model, UserMixin):
                   TripMember.query.filter_by(user_id=self.id, status='accepted').all()]
         return list(set(owned + joined))
 
+
+# ---------------------------------------------------------------------------
+# Trip
+# ---------------------------------------------------------------------------
 
 class Trip(db.Model):
     __tablename__ = 'trips'
@@ -118,10 +155,15 @@ class Trip(db.Model):
     budget_min  = db.Column(db.Float, default=0)
     budget_max  = db.Column(db.Float, default=0)
     max_members = db.Column(db.Integer, default=4)
-    status      = db.Column(db.String(20), default='OPEN')  # OPEN, AWAITING_CONFIRMATION, CONFIRMED, ACTIVE, COMPLETED, CANCELLED
-    confirmation_deadline = db.Column(db.DateTime, nullable=True)
+    status      = db.Column(db.String(20), default='OPEN')
+    # ── New fields ──────────────────────────────────────────────────────────
+    join_deadline           = db.Column(db.DateTime, nullable=True)
+    open_roster             = db.Column(db.Boolean, default=False, nullable=False,
+                                        server_default='0')
+    # ── Legacy fields (kept for backward compat / migration) ────────────────
+    confirmation_deadline   = db.Column(db.DateTime, nullable=True)
     confirmation_started_at = db.Column(db.DateTime, nullable=True)
-    cancelled_at = db.Column(db.DateTime, nullable=True)
+    cancelled_at            = db.Column(db.DateTime, nullable=True)
     is_public   = db.Column(db.Boolean, default=True)
     created_at  = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -135,15 +177,12 @@ class Trip(db.Model):
         return f'<Trip {self.title}>'
 
     # ------------------------------------------------------------------ #
-    # Date-derived computed properties (never stored in DB)              #
+    # Status helpers                                                       #
     # ------------------------------------------------------------------ #
 
     @property
     def computed_status(self):
-        """Compatibility helper for date-only display.
-
-        Returns 'upcoming', 'ongoing', or 'completed' based on today's date.
-        """
+        """Returns 'upcoming', 'ongoing', or 'completed' based on today's date."""
         today = _date.today()
         if today < self.start_date:
             return 'upcoming'
@@ -154,13 +193,38 @@ class Trip(db.Model):
 
     @property
     def joining_closed(self):
-        """Joining closes when the trip is no longer OPEN or 1 day before start."""
+        """Joining is closed when:
+        - Trip is not OPEN, OR
+        - join_deadline is set and has passed, OR
+        - 1 day before start_date (legacy fallback when no join_deadline set)
+        """
         if self.status and self.status.upper() != 'OPEN':
             return True
+        now_naive = datetime.utcnow()
+        if self.join_deadline is not None:
+            dl = self.join_deadline
+            if dl.tzinfo is not None:
+                dl = dl.replace(tzinfo=None)
+            return now_naive >= dl
+        # Legacy fallback: close 1 day before start
         return _date.today() >= (self.start_date - timedelta(days=1))
 
     @property
+    def join_deadline_passed(self) -> bool:
+        """True if the join_deadline datetime has passed (regardless of status)."""
+        if self.join_deadline is None:
+            return False
+        now_naive = datetime.utcnow()
+        dl = self.join_deadline
+        if dl.tzinfo is not None:
+            dl = dl.replace(tzinfo=None)
+        return now_naive >= dl
+
+    @property
     def main_confirmation_deadline(self):
+        """Legacy: kept for backward compat. Uses join_deadline if set."""
+        if self.join_deadline:
+            return self.join_deadline.date()
         return self.start_date - timedelta(days=2)
 
     @property
@@ -198,11 +262,15 @@ class Trip(db.Model):
             'CANCELLED': 'Cancelled',
         }.get(self.status.upper() if self.status else '', 'Unknown')
 
+    # ------------------------------------------------------------------ #
+    # Member helpers                                                       #
+    # ------------------------------------------------------------------ #
+
     def member_count(self):
         return self.members.filter_by(status='accepted').count() + 1  # +1 for owner
 
     def accepted_members(self):
-        return self.members.filter_by(status='accepted').all()
+        return TripMember.query.filter_by(trip_id=self.id, status='accepted').all()
 
     def confirmed_members(self):
         return self.members.filter_by(status='accepted', is_confirmed=True).all()
@@ -221,78 +289,68 @@ class Trip(db.Model):
             return True
         return all(member.is_confirmed for member in accepted)
 
+    def all_member_users(self):
+        """Owner + accepted members, as User objects."""
+        users = [self.owner]
+        for m in self.accepted_members():
+            users.append(m.user)
+        return users
+
+    # ------------------------------------------------------------------ #
+    # Action guards                                                        #
+    # ------------------------------------------------------------------ #
+
     def can_join(self):
         return self.is_open() and not self.joining_closed and not self.is_full()
 
     def can_leave(self):
-        return self.is_open() and not self.joining_closed
+        """Members can leave while trip is OPEN and join_deadline hasn't passed."""
+        return self.is_open() and not self.join_deadline_passed
 
     def can_cancel(self):
         today = _date.today()
         return self.status and self.status.upper() != 'CANCELLED' and today < self.start_date
 
-    def cancel(self):
-        self.status = 'CANCELLED'
-        self.cancelled_at = datetime.now(timezone.utc)
+    def can_owner_confirm(self):
+        """Owner can confirm the trip when it is AWAITING_CONFIRMATION."""
+        return self.is_awaiting_confirmation()
 
     def can_add_expense(self):
         return self.status and self.status.upper() in ('CONFIRMED', 'ACTIVE')
 
-    def confirmation_window_open(self):
-        if not self.confirmation_window_deadline:
-            return False
-        return self.confirmation_started_at is not None and _date.today() < self.confirmation_window_deadline.date()
+    # ------------------------------------------------------------------ #
+    # State transitions                                                    #
+    # ------------------------------------------------------------------ #
 
-    def confirmation_window_expired(self):
-        if not self.confirmation_started_at:
-            return False
-        # SQLite returns datetimes as offset-naive; compare with utcnow() to avoid
-        # TypeError: can't compare offset-naive and offset-aware datetimes
-        deadline = self.confirmation_window_deadline
-        if deadline is None:
-            return False
-        now_naive = datetime.utcnow()
-        # Strip tzinfo if the deadline was somehow stored with it
-        if deadline.tzinfo is not None:
-            deadline = deadline.replace(tzinfo=None)
-        return now_naive >= deadline
+    def cancel(self):
+        self.status = 'CANCELLED'
+        self.cancelled_at = datetime.now(timezone.utc)
 
-    def start_confirmation(self):
-        if self.status and self.status.upper() == 'AWAITING_CONFIRMATION':
-            return
-        self.status = 'AWAITING_CONFIRMATION'
-        self.confirmation_started_at = datetime.now(timezone.utc)
-        if not self.confirmation_deadline:
-            self.confirmation_deadline = datetime.combine(self.main_confirmation_deadline, datetime.min.time()).replace(tzinfo=timezone.utc)
-
-    def finalize_confirmed_members(self):
-        for member in self.accepted_members():
-            if not member.is_confirmed:
-                member.status = 'declined'
+    def owner_confirm_trip(self):
+        """Owner explicitly confirms the trip → CONFIRMED."""
+        if not self.is_awaiting_confirmation():
+            return False
         self.status = 'CONFIRMED'
         if not self.confirmation_started_at:
             self.confirmation_started_at = datetime.now(timezone.utc)
+        return True
 
-    def reopen_missing_slots(self):
-        if self.status and self.status.upper() != 'AWAITING_CONFIRMATION':
-            return
-        self.status = 'OPEN'
-        self.confirmation_started_at = None
-        self.confirmation_deadline = datetime.combine(self.main_confirmation_deadline, datetime.min.time()).replace(tzinfo=timezone.utc)
-        for member in self.accepted_members():
-            if not member.is_confirmed:
-                member.status = 'declined'
-
-    def maybe_start_confirmation_if_needed(self):
-        today = _date.today()
+    def maybe_transition_to_awaiting(self):
+        """
+        If join_deadline has passed and trip is still OPEN, move to AWAITING_CONFIRMATION.
+        Returns True if a transition occurred.
+        """
         if not self.is_open():
             return False
-        if self.is_full() or today >= self.main_confirmation_deadline:
-            self.start_confirmation()
+        if self.join_deadline_passed:
+            self.status = 'AWAITING_CONFIRMATION'
+            if not self.confirmation_started_at:
+                self.confirmation_started_at = datetime.now(timezone.utc)
             return True
         return False
 
     def refresh_status(self):
+        """Auto-advance OPEN/AWAITING_CONFIRMATION/CONFIRMED → ACTIVE → COMPLETED by date."""
         if self.is_cancelled() or self.status is None:
             return False
 
@@ -313,7 +371,24 @@ class Trip(db.Model):
 
         return updated
 
+    # ── Legacy: kept so existing routes that call these don't break ─────────
+
+    def start_confirmation(self):
+        if self.status and self.status.upper() == 'AWAITING_CONFIRMATION':
+            return
+        self.status = 'AWAITING_CONFIRMATION'
+        self.confirmation_started_at = datetime.now(timezone.utc)
+
+    def finalize_confirmed_members(self):
+        for member in self.accepted_members():
+            if not member.is_confirmed:
+                member.status = 'declined'
+        self.status = 'CONFIRMED'
+        if not self.confirmation_started_at:
+            self.confirmation_started_at = datetime.now(timezone.utc)
+
     def confirm_member(self, member):
+        """Legacy: individual member confirmation (kept for backward compat)."""
         if member.trip_id != self.id:
             return False
         member.is_confirmed = True
@@ -321,6 +396,104 @@ class Trip(db.Model):
         if self.all_members_confirmed():
             self.status = 'CONFIRMED'
         return True
+
+    def maybe_start_confirmation_if_needed(self):
+        """Legacy stub — now delegates to maybe_transition_to_awaiting."""
+        return self.maybe_transition_to_awaiting()
+
+    def confirmation_window_open(self):
+        if not self.confirmation_window_deadline:
+            return False
+        return (self.confirmation_started_at is not None and
+                _date.today() < self.confirmation_window_deadline.date())
+
+    def confirmation_window_expired(self):
+        if not self.confirmation_started_at:
+            return False
+        deadline = self.confirmation_window_deadline
+        if deadline is None:
+            return False
+        now_naive = datetime.utcnow()
+        if deadline.tzinfo is not None:
+            deadline = deadline.replace(tzinfo=None)
+        return now_naive >= deadline
+
+    def reopen_missing_slots(self):
+        if self.status and self.status.upper() != 'AWAITING_CONFIRMATION':
+            return
+        self.status = 'OPEN'
+        self.confirmation_started_at = None
+        for member in self.accepted_members():
+            if not member.is_confirmed:
+                member.status = 'declined'
+
+    def pending_request_for(self, user_id):
+        return TripMember.query.filter_by(trip_id=self.id, user_id=user_id).first()
+
+    # ------------------------------------------------------------------ #
+    # Contact visibility                                                   #
+    # ------------------------------------------------------------------ #
+
+    def contact_visible_for(self, viewer_id: int, target_user_id: int) -> bool:
+        """
+        Determine whether viewer_id can see phone/email of target_user_id
+        in the context of this trip.
+
+        Rules:
+        - CANCELLED trip → never show contacts
+        - Viewer sees their own contacts always
+        - Before CONFIRMED (OPEN / AWAITING_CONFIRMATION) → no contacts shown
+        - After CONFIRMED / ACTIVE / COMPLETED:
+          - Owner sees all confirmed members
+          - Any member sees the owner's contacts
+          - Members see each other only if open_roster=True
+        - Removed/left members lose access (checked via is_active_member below)
+        """
+        if self.is_cancelled():
+            return False
+
+        # Always show your own data to yourself
+        if viewer_id == target_user_id:
+            return True
+
+        # Only after confirmation do contacts become visible
+        if self.status.upper() not in ('CONFIRMED', 'ACTIVE', 'COMPLETED'):
+            return False
+
+        # Viewer must be an active participant (owner or accepted member)
+        if not self._is_active_participant(viewer_id):
+            return False
+
+        # Target must also be an active participant
+        if not self._is_active_participant(target_user_id):
+            return False
+
+        is_viewer_owner = (viewer_id == self.owner_id)
+        is_target_owner = (target_user_id == self.owner_id)
+
+        if is_viewer_owner:
+            # Owner sees everyone's contacts
+            return True
+
+        if is_target_owner:
+            # All members see owner's contacts
+            return True
+
+        # Member ↔ Member: only if open_roster enabled
+        return bool(self.open_roster)
+
+    def _is_active_participant(self, user_id: int) -> bool:
+        """True if user_id is the owner OR an accepted (non-removed) member."""
+        if user_id == self.owner_id:
+            return True
+        m = TripMember.query.filter_by(
+            trip_id=self.id, user_id=user_id, status='accepted'
+        ).first()
+        return m is not None
+
+    # ------------------------------------------------------------------ #
+    # Finance                                                              #
+    # ------------------------------------------------------------------ #
 
     def total_spent(self):
         return round(sum(e.amount for e in self.expenses), 2)
@@ -334,21 +507,7 @@ class Trip(db.Model):
         share = self.your_share(user_id)
         return round(paid - share, 2)
 
-    def accepted_members(self):
-        return TripMember.query.filter_by(trip_id=self.id, status='accepted').all()
-
-    def is_full(self):
-        return self.member_count() >= self.max_members
-
-    def all_member_users(self):
-        """Owner + accepted members, as User objects."""
-        users = [self.owner]
-        for m in self.accepted_members():
-            users.append(m.user)
-        return users
-
     def settlement_summary(self):
-        """List of dicts: user, paid, share, balance for each member."""
         summary = []
         for user in self.all_member_users():
             paid = sum(e.amount for e in self.expenses.filter_by(paid_by_id=user.id))
@@ -364,13 +523,7 @@ class Trip(db.Model):
     def calculate_settlements(self):
         """
         Greedy minimum-transfers algorithm (Splitwise-style).
-
-        Returns a list of dicts:
-          { 'debtor': User, 'creditor': User, 'amount': float }
-
-        Example: A paid ₹900, B paid ₹1200, C paid ₹0  →  3 members, share = ₹700
-          Net: A=+200, B=+500, C=-700
-          Result: [C→B ₹500, C→A ₹200]  (only 2 transactions for 3 people)
+        Returns list of dicts: { 'debtor': User, 'creditor': User, 'amount': float }
         """
         members = self.all_member_users()
         mc = len(members)
@@ -380,13 +533,11 @@ class Trip(db.Model):
         total = sum(e.amount for e in self.expenses)
         share = total / mc
 
-        # Build net balance list [(user, net_balance)]
         balances = []
         for user in members:
             paid = sum(e.amount for e in self.expenses.filter_by(paid_by_id=user.id))
             balances.append([user, round(paid - share, 2)])
 
-        # Separate into creditors (balance > 0) and debtors (balance < 0)
         creditors = sorted([b for b in balances if b[1] > 0.009], key=lambda x: -x[1])
         debtors   = sorted([b for b in balances if b[1] < -0.009], key=lambda x: x[1])
 
@@ -413,9 +564,10 @@ class Trip(db.Model):
 
         return settlements
 
-    def pending_request_for(self, user_id):
-        return TripMember.query.filter_by(trip_id=self.id, user_id=user_id).first()
 
+# ---------------------------------------------------------------------------
+# TripMember
+# ---------------------------------------------------------------------------
 
 class TripMember(db.Model):
     __tablename__ = 'trip_members'
@@ -437,8 +589,12 @@ class TripMember(db.Model):
     user = db.relationship('User', back_populates='memberships')
 
     def __repr__(self):
-        return f'<TripMember trip={self.trip_id} user={self.user_id} status={self.status} confirmed={self.is_confirmed}>'
+        return f'<TripMember trip={self.trip_id} user={self.user_id} status={self.status}>'
 
+
+# ---------------------------------------------------------------------------
+# Settlement
+# ---------------------------------------------------------------------------
 
 class Settlement(db.Model):
     __tablename__ = 'settlements'
@@ -449,8 +605,8 @@ class Settlement(db.Model):
 
     id         = db.Column(db.Integer, primary_key=True)
     trip_id    = db.Column(db.Integer, db.ForeignKey('trips.id'), nullable=False)
-    payer_id   = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)   # debtor
-    payee_id   = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)   # creditor
+    payer_id   = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    payee_id   = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     amount     = db.Column(db.Float, nullable=False)
     is_settled = db.Column(db.Boolean, default=False, nullable=False)
     settled_at = db.Column(db.DateTime, nullable=True)
@@ -461,8 +617,12 @@ class Settlement(db.Model):
     payee = db.relationship('User', foreign_keys=[payee_id])
 
     def __repr__(self):
-        return f'<Settlement trip={self.trip_id} {self.payer_id}→{self.payee_id} ₹{self.amount} settled={self.is_settled}>'
+        return f'<Settlement trip={self.trip_id} {self.payer_id}→{self.payee_id} ₹{self.amount}>'
 
+
+# ---------------------------------------------------------------------------
+# Expense
+# ---------------------------------------------------------------------------
 
 class Expense(db.Model):
     __tablename__ = 'expenses'
@@ -485,3 +645,34 @@ class Expense(db.Model):
 
     def __repr__(self):
         return f'<Expense {self.title} ₹{self.amount}>'
+
+
+# ---------------------------------------------------------------------------
+# ContactAccessLog
+# ---------------------------------------------------------------------------
+
+class ContactAccessLog(db.Model):
+    """Audit log: every time a user's contact details are revealed to another user."""
+    __tablename__ = 'contact_access_logs'
+    __table_args__ = (
+        db.Index('ix_cal_viewer_trip', 'viewer_id', 'trip_id'),
+        db.Index('ix_cal_target_trip', 'target_user_id', 'trip_id'),
+    )
+
+    id             = db.Column(db.Integer, primary_key=True)
+    viewer_id      = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'),
+                               nullable=False)
+    target_user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'),
+                               nullable=False)
+    trip_id        = db.Column(db.Integer, db.ForeignKey('trips.id', ondelete='CASCADE'),
+                               nullable=False)
+    viewed_at      = db.Column(db.DateTime,
+                               default=lambda: datetime.now(timezone.utc))
+
+    viewer      = db.relationship('User', foreign_keys=[viewer_id])
+    target_user = db.relationship('User', foreign_keys=[target_user_id])
+    trip        = db.relationship('Trip')
+
+    def __repr__(self):
+        return (f'<ContactAccessLog viewer={self.viewer_id} '
+                f'target={self.target_user_id} trip={self.trip_id}>')

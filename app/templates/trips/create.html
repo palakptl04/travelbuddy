@@ -41,6 +41,20 @@
   .form-group textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
   .field-error { font-size: 12px; color: #dc2626; margin-top: 5px; display: flex; align-items: center; gap: 4px; }
   .field-error::before { content: '⚠'; font-size: 11px; }
+  .field-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
+
+  /* Checkbox row */
+  .checkbox-group {
+    display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px;
+    background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px;
+    cursor: pointer;
+  }
+  .checkbox-group input[type="checkbox"] {
+    width: 16px; height: 16px; margin-top: 2px; flex-shrink: 0;
+    accent-color: var(--green); cursor: pointer;
+  }
+  .checkbox-group .cb-label { font-size: 13px; font-weight: 600; color: var(--text); }
+  .checkbox-group .cb-hint { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 
   .edit-actions {
     padding: 20px 32px; display: flex; align-items: center; gap: 12px;
@@ -140,6 +154,29 @@
             {{ form.max_members.label }}
             {{ form.max_members(placeholder="e.g. 4", class="input-error" if form.max_members.errors else "") }}
             {% for error in form.max_members.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+          </div>
+        </div>
+
+        <div class="edit-section">
+          <div class="edit-section-title">🔐 Membership Settings</div>
+
+          <div class="form-group">
+            {{ form.join_deadline.label }}
+            {{ form.join_deadline(class="input-error" if form.join_deadline.errors else "") }}
+            {% for error in form.join_deadline.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+            <div class="field-hint">⏳ After this date, new members cannot join and existing members cannot leave. The trip status will move to <strong>Awaiting Confirmation</strong> until you confirm or cancel.</div>
+          </div>
+
+          <div class="form-group">
+            <label for="open_roster">Member Contact Visibility</label>
+            <label class="checkbox-group">
+              {{ form.open_roster(id="open_roster") }}
+              <div>
+                <div class="cb-label">Open Roster</div>
+                <div class="cb-hint">Allow confirmed members to see each other's phone and email. When disabled (default), members can only see your contact details.</div>
+              </div>
+            </label>
+            {% for error in form.open_roster.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
           </div>
         </div>
 

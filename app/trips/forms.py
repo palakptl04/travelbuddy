@@ -1,7 +1,9 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, DateField, FloatField, IntegerField, SubmitField, SelectField
-from wtforms.validators import DataRequired, Length, NumberRange, ValidationError
-from datetime import date, timedelta
+from wtforms import (StringField, TextAreaField, DateField, FloatField,
+                     IntegerField, SubmitField, SelectField, BooleanField,
+                     DateTimeLocalField)
+from wtforms.validators import DataRequired, Length, NumberRange, ValidationError, Optional
+from datetime import date, datetime, timedelta
 from app.cities import CITY_CHOICES
 
 
@@ -31,7 +33,19 @@ class TripForm(FlaskForm):
         DataRequired(message='Max members is required.'),
         NumberRange(min=1, max=50, message='Max members must be between 1 and 50.')
     ])
+    # ── New fields ───────────────────────────────────────────────────────────
+    join_deadline = DateField(
+        'Join Deadline (optional)',
+        validators=[Optional()],
+        description='Last day for new members to join. Leaving is also blocked after this date.'
+    )
+    open_roster = BooleanField(
+        'Open Roster',
+        description='Allow confirmed members to see each other\'s phone and email.'
+    )
     submit = SubmitField('Save Trip')
+
+    # ── Validators ───────────────────────────────────────────────────────────
 
     def validate_destination(self, field):
         if self.departure_city.data and field.data == self.departure_city.data:
@@ -49,3 +63,11 @@ class TripForm(FlaskForm):
         if self.budget_min.data is not None and field.data is not None \
                 and field.data < self.budget_min.data:
             raise ValidationError('Max budget must be greater than or equal to min budget.')
+
+    def validate_join_deadline(self, field):
+        if field.data is None:
+            return  # optional — no deadline is fine
+        if field.data < date.today():
+            raise ValidationError('Join deadline must be today or a future date.')
+        if self.start_date.data and field.data >= self.start_date.data:
+            raise ValidationError('Join deadline must be before the start date.')
