@@ -239,12 +239,23 @@ class Trip(db.Model):
         return self.status and self.status.upper() in ('CONFIRMED', 'ACTIVE')
 
     def confirmation_window_open(self):
-        return self.confirmation_started_at is not None and _date.today() < self.confirmation_window_deadline.date() if self.confirmation_window_deadline else False
+        if not self.confirmation_window_deadline:
+            return False
+        return self.confirmation_started_at is not None and _date.today() < self.confirmation_window_deadline.date()
 
     def confirmation_window_expired(self):
         if not self.confirmation_started_at:
             return False
-        return datetime.now(timezone.utc) >= self.confirmation_window_deadline
+        # SQLite returns datetimes as offset-naive; compare with utcnow() to avoid
+        # TypeError: can't compare offset-naive and offset-aware datetimes
+        deadline = self.confirmation_window_deadline
+        if deadline is None:
+            return False
+        now_naive = datetime.utcnow()
+        # Strip tzinfo if the deadline was somehow stored with it
+        if deadline.tzinfo is not None:
+            deadline = deadline.replace(tzinfo=None)
+        return now_naive >= deadline
 
     def start_confirmation(self):
         if self.status and self.status.upper() == 'AWAITING_CONFIRMATION':
