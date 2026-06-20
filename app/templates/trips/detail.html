@@ -260,14 +260,18 @@
           <span>📅 {{ trip.start_date.strftime('%b %d') }} – {{ trip.end_date.strftime('%b %d, %Y') }}</span>
           <span>👥 {{ trip.member_count() }}/{{ trip.max_members }} members</span>
           <span>💰 ₹{{ "%.0f"|format(trip.budget_min) }}–₹{{ "%.0f"|format(trip.budget_max) }}</span>
-          {% if trip.computed_status == 'ongoing' %}
-            <span class="badge badge-active">Ongoing</span>
-          {% elif trip.computed_status == 'completed' %}
-            <span class="badge badge-completed">Completed</span>
+          {% if trip.is_cancelled() %}
+            <span class="badge badge-join-closed">{{ trip.status_label }}</span>
+          {% elif trip.is_active() %}
+            <span class="badge badge-active">{{ trip.status_label }}</span>
+          {% elif trip.is_completed() %}
+            <span class="badge badge-completed">{{ trip.status_label }}</span>
+          {% elif trip.is_open() %}
+            <span class="badge badge-open">{{ trip.status_label }}</span>
           {% else %}
-            <span class="badge badge-upcoming">Upcoming</span>
+            <span class="badge badge-upcoming">{{ trip.status_label }}</span>
           {% endif %}
-          {% if trip.joining_closed %}
+          {% if trip.joining_closed and not trip.is_cancelled() %}
             <span class="badge badge-join-closed">Join Closed</span>
           {% endif %}
           {% if is_owner %}<span class="badge badge-owner">Owner</span>{% endif %}
@@ -276,12 +280,24 @@
       <div class="header-actions">
         {% if is_owner %}
           <a href="{{ url_for('trips.edit', trip_id=trip.id) }}" class="btn-secondary">✏️ Edit</a>
-          <form method="POST" action="{{ url_for('trips.delete', trip_id=trip.id) }}"
-                onsubmit="return confirm('Delete this trip? This cannot be undone.');">
+          {% if trip.can_cancel() %}
+          <form method="POST" action="{{ url_for('trips.cancel', trip_id=trip.id) }}"
+                onsubmit="return confirm('Cancel this trip? This cannot be undone.');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn-danger">🗑️ Delete</button>
+            <button type="submit" class="btn-danger">🚫 Cancel Trip</button>
           </form>
+          {% endif %}
         {% elif is_member %}
+          {% if trip.is_awaiting_confirmation() and membership.status == 'accepted' %}
+            {% if not membership.is_confirmed %}
+            <form method="POST" action="{{ url_for('trips.confirm_participation', trip_id=trip.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn-primary">✅ Confirm Participation</button>
+            </form>
+            {% else %}
+              <button class="btn-secondary" disabled>Participation Confirmed</button>
+            {% endif %}
+          {% endif %}
           {# Accepted member: show Leave Trip only while joining is open #}
           {% if not trip.joining_closed %}
           <form method="POST" action="{{ url_for('trips.leave', trip_id=trip.id) }}"
@@ -295,13 +311,13 @@
             <button class="btn-secondary" disabled>Request Pending</button>
           {% elif membership and membership.status == 'declined' %}
             <button class="btn-secondary" disabled>Request Declined</button>
-          {% elif trip.joining_closed %}
-            <button class="btn-secondary" disabled>Join Closed</button>
-          {% elif not trip.is_full() %}
+          {% elif trip.is_open() and not trip.is_full() %}
             <form method="POST" action="{{ url_for('trips.send_request', trip_id=trip.id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button type="submit" class="btn-primary">🤝 Send Buddy Request</button>
             </form>
+          {% elif trip.is_cancelled() %}
+            <button class="btn-secondary" disabled>Cancelled</button>
           {% else %}
             <button class="btn-secondary" disabled>Join Closed</button>
           {% endif %}
@@ -337,8 +353,8 @@
           <div class="panel-body">
 
             {% if expense_form %}
-            {%- if trip.joining_closed %}
-            {# ── Add Expense Form (only available after joining closes) ── #}
+            {%- if trip.can_add_expense() %}
+            {# ── Add Expense Form (only available once the trip is confirmed or active) ── #}
             <form method="POST" action="{{ url_for('expenses.add', trip_id=trip.id) }}" class="expense-form-card" novalidate>
               {{ expense_form.hidden_tag() }}
               {# Hidden paid_by_id — always current user, set server-side #}
@@ -366,10 +382,10 @@
               </div>
             </form>
             {%- else %}
-            {# Joining still open — expenses not available yet #}
+            {# Trip not ready for expenses yet #}
             <div style="background:var(--bg);border:1.5px dashed var(--border);border-radius:12px;padding:16px 18px;margin-bottom:20px;text-align:center;">
               <span style="font-size:20px;">🔒</span>
-              <p style="font-size:13px;color:var(--text-muted);margin:6px 0 0;">Expenses become available after joining closes (1 day before the trip starts).</p>
+              <p style="font-size:13px;color:var(--text-muted);margin:6px 0 0;">Expenses can be added only after the trip is confirmed or active.</p>
             </div>
             {%- endif %}
             {% endif %}

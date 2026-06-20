@@ -142,7 +142,7 @@ def sample_trip(auth_client, app):
     """Create a Trip owned by the authenticated test user."""
     from app.models import Trip
     _, user = auth_client
-    tomorrow = date.today() + timedelta(days=1)
+    trip_start = date.today() + timedelta(days=2)
 
     with app.app_context():
         trip = Trip(
@@ -150,12 +150,12 @@ def sample_trip(auth_client, app):
             title='Test Trip',
             destination='Ahmedabad',
             departure_city='Surat',
-            start_date=tomorrow,
-            end_date=tomorrow + timedelta(days=5),
+            start_date=trip_start,
+            end_date=trip_start + timedelta(days=5),
             budget_min=5000,
             budget_max=10000,
             max_members=4,
-            status='upcoming',
+            status='OPEN',
             is_public=True,
         )
         _db.session.add(trip)

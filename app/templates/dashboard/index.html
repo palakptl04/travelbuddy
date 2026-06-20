@@ -514,7 +514,17 @@
                   </div>
                 </div>
                 <div class="trip-right">
-                  <span class="badge badge-upcoming">Upcoming</span>
+                  {% if trip.is_cancelled() %}
+                    <span class="badge badge-join-closed">{{ trip.status_label }}</span>
+                  {% elif trip.is_active() %}
+                    <span class="badge badge-active">{{ trip.status_label }}</span>
+                  {% elif trip.is_completed() %}
+                    <span class="badge badge-completed">{{ trip.status_label }}</span>
+                  {% elif trip.is_open() %}
+                    <span class="badge badge-open">{{ trip.status_label }}</span>
+                  {% else %}
+                    <span class="badge badge-upcoming">{{ trip.status_label }}</span>
+                  {% endif %}
                   {% if trip.owner_id == current_user.id %}
                     <span class="badge badge-owner">Owner</span>
                   {% endif %}
@@ -526,7 +536,7 @@
                 <div class="empty-icon">🌍</div>
                 <h4>No trips planned yet</h4>
                 <p>Create your first trip and invite buddies to join you on the adventure.</p>
-                <a href="#" class="btn-primary" style="display:inline-flex;margin:0 auto;">＋ Create a Trip</a>
+                <a href="{{ url_for('trips.create') }}" class="btn-primary" style="display:inline-flex;margin:0 auto;">＋ Create a Trip</a>
               </div>
             {% endif %}
           </div>

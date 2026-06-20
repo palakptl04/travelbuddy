@@ -180,12 +180,16 @@
               </div>
             </div>
             <div class="trip-right">
-              {% if trip.computed_status == 'ongoing' %}
-                <span class="badge badge-active">Ongoing</span>
-              {% elif trip.computed_status == 'completed' %}
-                <span class="badge badge-completed">Completed</span>
+              {% if trip.is_cancelled() %}
+                <span class="badge badge-join-closed">{{ trip.status_label }}</span>
+              {% elif trip.is_active() %}
+                <span class="badge badge-active">{{ trip.status_label }}</span>
+              {% elif trip.is_completed() %}
+                <span class="badge badge-completed">{{ trip.status_label }}</span>
+              {% elif trip.is_open() %}
+                <span class="badge badge-open">{{ trip.status_label }}</span>
               {% else %}
-                <span class="badge badge-upcoming">Upcoming</span>
+                <span class="badge badge-upcoming">{{ trip.status_label }}</span>
               {% endif %}
               {% if trip.owner_id == current_user.id %}
                 <span class="badge badge-owner">Owner</span>

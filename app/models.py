@@ -35,8 +35,8 @@ class User(db.Model, UserMixin):
     def get_active_trips(self):
         """All active trips the user owns or has been accepted into — single query."""
         from sqlalchemy import or_
-        # Trips owned by user with status active
-        owned = Trip.query.filter_by(owner_id=self.id, status='active').all()
+        # Trips owned by user with status ACTIVE
+        owned = Trip.query.filter_by(owner_id=self.id, status='ACTIVE').all()
         # Trips the user is an accepted member of (not owner)
         joined = (
             Trip.query
@@ -52,15 +52,19 @@ class User(db.Model, UserMixin):
         return owned + joined
 
     def get_upcoming_trips(self):
-        """All upcoming trips the user owns or has been accepted into — single query."""
-        owned = Trip.query.filter_by(owner_id=self.id, status='upcoming').all()
+        """All trips that are not active, completed, or cancelled."""
+        upcoming_statuses = ['OPEN', 'AWAITING_CONFIRMATION', 'CONFIRMED']
+        owned = Trip.query.filter(
+            Trip.owner_id == self.id,
+            Trip.status.in_(upcoming_statuses)
+        ).all()
         joined = (
             Trip.query
             .join(TripMember, TripMember.trip_id == Trip.id)
             .filter(
                 TripMember.user_id == self.id,
                 TripMember.status == 'accepted',
-                Trip.status == 'upcoming',
+                Trip.status.in_(upcoming_statuses),
                 Trip.owner_id != self.id
             )
             .all()
@@ -114,7 +118,10 @@ class Trip(db.Model):
     budget_min  = db.Column(db.Float, default=0)
     budget_max  = db.Column(db.Float, default=0)
     max_members = db.Column(db.Integer, default=4)
-    status      = db.Column(db.String(20), default='upcoming')  # upcoming, active, completed
+    status      = db.Column(db.String(20), default='OPEN')  # OPEN, AWAITING_CONFIRMATION, CONFIRMED, ACTIVE, COMPLETED, CANCELLED
+    confirmation_deadline = db.Column(db.DateTime, nullable=True)
+    confirmation_started_at = db.Column(db.DateTime, nullable=True)
+    cancelled_at = db.Column(db.DateTime, nullable=True)
     is_public   = db.Column(db.Boolean, default=True)
     created_at  = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -133,11 +140,9 @@ class Trip(db.Model):
 
     @property
     def computed_status(self):
-        """Return 'upcoming', 'ongoing', or 'completed' based on today's date.
+        """Compatibility helper for date-only display.
 
-        - upcoming  : start_date > today
-        - ongoing   : start_date <= today <= end_date
-        - completed : end_date < today
+        Returns 'upcoming', 'ongoing', or 'completed' based on today's date.
         """
         today = _date.today()
         if today < self.start_date:
@@ -149,15 +154,162 @@ class Trip(db.Model):
 
     @property
     def joining_closed(self):
-        """Joining closes 1 day before the trip starts.
-
-        Returns True when today >= start_date - 1 day.
-        Example: start_date = Jun 20  →  joining closes on Jun 19.
-        """
+        """Joining closes when the trip is no longer OPEN or 1 day before start."""
+        if self.status and self.status.upper() != 'OPEN':
+            return True
         return _date.today() >= (self.start_date - timedelta(days=1))
+
+    @property
+    def main_confirmation_deadline(self):
+        return self.start_date - timedelta(days=2)
+
+    @property
+    def confirmation_window_deadline(self):
+        if not self.confirmation_started_at:
+            return None
+        return self.confirmation_started_at + timedelta(hours=24)
+
+    def is_open(self):
+        return self.status and self.status.upper() == 'OPEN'
+
+    def is_awaiting_confirmation(self):
+        return self.status and self.status.upper() == 'AWAITING_CONFIRMATION'
+
+    def is_confirmed(self):
+        return self.status and self.status.upper() == 'CONFIRMED'
+
+    def is_active(self):
+        return self.status and self.status.upper() == 'ACTIVE'
+
+    def is_completed(self):
+        return self.status and self.status.upper() == 'COMPLETED'
+
+    def is_cancelled(self):
+        return self.status and self.status.upper() == 'CANCELLED'
+
+    @property
+    def status_label(self):
+        return {
+            'OPEN': 'Open',
+            'AWAITING_CONFIRMATION': 'Awaiting Confirmation',
+            'CONFIRMED': 'Confirmed',
+            'ACTIVE': 'Active',
+            'COMPLETED': 'Completed',
+            'CANCELLED': 'Cancelled',
+        }.get(self.status.upper() if self.status else '', 'Unknown')
 
     def member_count(self):
         return self.members.filter_by(status='accepted').count() + 1  # +1 for owner
+
+    def accepted_members(self):
+        return self.members.filter_by(status='accepted').all()
+
+    def confirmed_members(self):
+        return self.members.filter_by(status='accepted', is_confirmed=True).all()
+
+    def all_participants(self):
+        participants = [self.owner]
+        participants.extend(self.accepted_members())
+        return participants
+
+    def is_full(self):
+        return self.member_count() >= self.max_members
+
+    def all_members_confirmed(self):
+        accepted = self.accepted_members()
+        if not accepted:
+            return True
+        return all(member.is_confirmed for member in accepted)
+
+    def can_join(self):
+        return self.is_open() and not self.joining_closed and not self.is_full()
+
+    def can_leave(self):
+        return self.is_open() and not self.joining_closed
+
+    def can_cancel(self):
+        today = _date.today()
+        return self.status and self.status.upper() != 'CANCELLED' and today < self.start_date
+
+    def cancel(self):
+        self.status = 'CANCELLED'
+        self.cancelled_at = datetime.now(timezone.utc)
+
+    def can_add_expense(self):
+        return self.status and self.status.upper() in ('CONFIRMED', 'ACTIVE')
+
+    def confirmation_window_open(self):
+        return self.confirmation_started_at is not None and _date.today() < self.confirmation_window_deadline.date() if self.confirmation_window_deadline else False
+
+    def confirmation_window_expired(self):
+        if not self.confirmation_started_at:
+            return False
+        return datetime.now(timezone.utc) >= self.confirmation_window_deadline
+
+    def start_confirmation(self):
+        if self.status and self.status.upper() == 'AWAITING_CONFIRMATION':
+            return
+        self.status = 'AWAITING_CONFIRMATION'
+        self.confirmation_started_at = datetime.now(timezone.utc)
+        if not self.confirmation_deadline:
+            self.confirmation_deadline = datetime.combine(self.main_confirmation_deadline, datetime.min.time()).replace(tzinfo=timezone.utc)
+
+    def finalize_confirmed_members(self):
+        for member in self.accepted_members():
+            if not member.is_confirmed:
+                member.status = 'declined'
+        self.status = 'CONFIRMED'
+        if not self.confirmation_started_at:
+            self.confirmation_started_at = datetime.now(timezone.utc)
+
+    def reopen_missing_slots(self):
+        if self.status and self.status.upper() != 'AWAITING_CONFIRMATION':
+            return
+        self.status = 'OPEN'
+        self.confirmation_started_at = None
+        self.confirmation_deadline = datetime.combine(self.main_confirmation_deadline, datetime.min.time()).replace(tzinfo=timezone.utc)
+        for member in self.accepted_members():
+            if not member.is_confirmed:
+                member.status = 'declined'
+
+    def maybe_start_confirmation_if_needed(self):
+        today = _date.today()
+        if not self.is_open():
+            return False
+        if self.is_full() or today >= self.main_confirmation_deadline:
+            self.start_confirmation()
+            return True
+        return False
+
+    def refresh_status(self):
+        if self.is_cancelled() or self.status is None:
+            return False
+
+        today = _date.today()
+        updated = False
+
+        if self.status.upper() in ('OPEN', 'AWAITING_CONFIRMATION', 'CONFIRMED'):
+            if today > self.end_date:
+                self.status = 'COMPLETED'
+                updated = True
+            elif today >= self.start_date:
+                self.status = 'ACTIVE'
+                updated = True
+        elif self.status.upper() == 'ACTIVE':
+            if today > self.end_date:
+                self.status = 'COMPLETED'
+                updated = True
+
+        return updated
+
+    def confirm_member(self, member):
+        if member.trip_id != self.id:
+            return False
+        member.is_confirmed = True
+        member.confirmed_at = datetime.now(timezone.utc)
+        if self.all_members_confirmed():
+            self.status = 'CONFIRMED'
+        return True
 
     def total_spent(self):
         return round(sum(e.amount for e in self.expenses), 2)
@@ -262,17 +414,19 @@ class TripMember(db.Model):
         db.UniqueConstraint('trip_id', 'user_id', name='uq_trip_member'),
     )
 
-    id         = db.Column(db.Integer, primary_key=True)
-    trip_id    = db.Column(db.Integer, db.ForeignKey('trips.id'), nullable=False)
-    user_id    = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    status     = db.Column(db.String(20), default='pending')  # pending, accepted, declined
-    joined_at  = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    id            = db.Column(db.Integer, primary_key=True)
+    trip_id       = db.Column(db.Integer, db.ForeignKey('trips.id'), nullable=False)
+    user_id       = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    status        = db.Column(db.String(20), default='pending')  # pending, accepted, declined
+    is_confirmed  = db.Column(db.Boolean, default=False, nullable=False)
+    confirmed_at  = db.Column(db.DateTime, nullable=True)
+    joined_at     = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     trip = db.relationship('Trip', back_populates='members')
     user = db.relationship('User', back_populates='memberships')
 
     def __repr__(self):
-        return f'<TripMember trip={self.trip_id} user={self.user_id} status={self.status}>'
+        return f'<TripMember trip={self.trip_id} user={self.user_id} status={self.status} confirmed={self.is_confirmed}>'
 
 
 class Settlement(db.Model):

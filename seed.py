@@ -48,7 +48,7 @@ with app.app_context():
         destination='Ahmedabad → Dwarka → Somnath',
         start_date=today - timedelta(days=2),
         end_date=today + timedelta(days=3),
-        status='active',
+        status='ACTIVE',
         is_public=True,
         description='Covering the Saurashtra coast — temples, beaches, and local food.'
     )
@@ -58,7 +58,7 @@ with app.app_context():
         destination='Manali, Himachal Pradesh',
         start_date=today + timedelta(days=30),
         end_date=today + timedelta(days=37),
-        status='upcoming',
+        status='OPEN',
         is_public=True,
         description='High altitude trek and cafe hopping in the hills.'
     )
@@ -68,7 +68,7 @@ with app.app_context():
         destination='North Goa',
         start_date=today + timedelta(days=10),
         end_date=today + timedelta(days=13),
-        status='upcoming',
+        status='OPEN',
         is_public=True,
         description='Quick beach escape — sunsets, seafood, and chill vibes.'
     )

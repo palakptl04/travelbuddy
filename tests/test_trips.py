@@ -11,14 +11,14 @@ from app.extensions import db as _db
 # ---------------------------------------------------------------------------
 
 def _trip_data(overrides=None):
-    tomorrow = date.today() + timedelta(days=1)
+    trip_start = date.today() + timedelta(days=2)
     data = {
         'title': 'Ahmedabad Adventure',
         'destination': 'Ahmedabad',
         'departure_city': 'Surat',
         'description': 'A fun trip',
-        'start_date': tomorrow.isoformat(),
-        'end_date': (tomorrow + timedelta(days=7)).isoformat(),
+        'start_date': trip_start.isoformat(),
+        'end_date': (trip_start + timedelta(days=7)).isoformat(),
         'budget_min': 5000,
         'budget_max': 15000,
         'max_members': 4,
@@ -164,17 +164,19 @@ class TestEditTrip:
 # Delete
 # ---------------------------------------------------------------------------
 
-class TestDeleteTrip:
-    def test_delete_trip_success(self, auth_client, sample_trip, app):
+class TestCancelTrip:
+    def test_cancel_trip_success(self, auth_client, sample_trip, app):
         client, _ = auth_client
         trip_id = sample_trip.id
-        resp = client.post(f'/trips/{trip_id}/delete', follow_redirects=True)
+        resp = client.post(f'/trips/{trip_id}/cancel', follow_redirects=True)
         assert resp.status_code == 200
         with app.app_context():
-            assert _db.session.get(Trip, trip_id) is None
+            trip = _db.session.get(Trip, trip_id)
+        assert trip is not None
+        assert trip.status == 'CANCELLED'
 
-    def test_delete_trip_requires_login(self, client, sample_trip):
-        resp = client.post(f'/trips/{sample_trip.id}/delete', follow_redirects=False)
+    def test_cancel_trip_requires_login(self, client, sample_trip):
+        resp = client.post(f'/trips/{sample_trip.id}/cancel', follow_redirects=False)
         assert resp.status_code == 302
 
 
@@ -520,6 +522,7 @@ class TestPartialFill:
                 end_date=future + timedelta(days=3),
                 budget_min=1000, budget_max=5000,
                 max_members=5,   # expected 5
+                status='OPEN',
                 is_public=True,
             )
             _db.session.add(trip)
@@ -535,6 +538,6 @@ class TestPartialFill:
             t = _db.session.get(Trip, trip_id)
             # Trip must exist and not be cancelled
             assert t is not None
-            assert t.status == 'upcoming'
+            assert t.status == 'OPEN'
             # member_count reflects actual accepted members only
             assert t.member_count() == 2   # owner + 1 joiner

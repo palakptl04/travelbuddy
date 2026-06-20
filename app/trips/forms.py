@@ -1,6 +1,7 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField, DateField, FloatField, IntegerField, SubmitField, SelectField
 from wtforms.validators import DataRequired, Length, NumberRange, ValidationError
+from datetime import date, timedelta
 from app.cities import CITY_CHOICES
 
 
@@ -35,6 +36,10 @@ class TripForm(FlaskForm):
     def validate_destination(self, field):
         if self.departure_city.data and field.data == self.departure_city.data:
             raise ValidationError('Destination must differ from departure city.')
+
+    def validate_start_date(self, field):
+        if field.data and field.data < date.today() + timedelta(days=2):
+            raise ValidationError('Start date must be at least 2 days from today.')
 
     def validate_end_date(self, field):
         if self.start_date.data and field.data and field.data < self.start_date.data:

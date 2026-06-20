@@ -36,6 +36,7 @@ def _trip_to_dict(trip):
         'status':          trip.status,
         'computed_status': trip.computed_status,   # date-based: upcoming/ongoing/completed
         'joining_closed':  trip.joining_closed,
+        'status_label':    trip.status_label,
         'is_public':       trip.is_public,
         'budget_min':      trip.budget_min,
         'budget_max':      trip.budget_max,

@@ -28,12 +28,10 @@ def add(trip_id):
         flash('Only trip members can add expenses.', 'error')
         return redirect(url_for('trips.detail', trip_id=trip.id))
 
-    # Expenses are only allowed after joining closes (1 day before trip starts).
-    # This prevents members who join later from distorting existing splits.
-    if not trip.joining_closed:
+    # Expenses are only allowed once the trip is confirmed or active.
+    if not trip.can_add_expense():
         flash(
-            'Expenses can only be added after joining closes '
-            '(1 day before the trip starts).',
+            'Expenses can only be added once the trip is confirmed or active.',
             'error'
         )
         return redirect(url_for('trips.detail', trip_id=trip.id))
