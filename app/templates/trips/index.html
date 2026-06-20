@@ -87,6 +87,7 @@
   .badge-owner       { background: var(--green-light); color: var(--green-dark); }
   .badge-completed   { background: #f3f4f6; color: #6b7280; }
   .badge-open        { background: #d1fae5; color: #065f46; }
+  .badge-full        { background: #fee2e2; color: #991b1b; }
   .badge-join-closed { background: #fee2e2; color: #991b1b; }
 
   .btn-small {
@@ -173,10 +174,10 @@
             <div class="trip-info">
               <div class="trip-name"><a href="{{ url_for('trips.detail', trip_id=trip.id) }}">{{ trip.title }}</a></div>
               <div class="trip-meta">
-                <span>🛫 {{ trip.departure_city }} → 📍 {{ trip.destination }}</span>
+                <span>🛫 {% if trip.departure_city %}{{ trip.departure_city }}{% else %}—{% endif %} → 📍 {{ trip.destination }}</span>
                 <span>📅 {{ trip.start_date.strftime('%b %d') }} – {{ trip.end_date.strftime('%b %d, %Y') }}</span>
                 <span>👥 {{ trip.member_count() }}/{{ trip.max_members }}</span>
-                <span>💰 ₹{{ "%.0f"|format(trip.budget_min) }}–₹{{ "%.0f"|format(trip.budget_max) }}</span>
+                {% if trip.budget_min or trip.budget_max %}<span>💰 ₹{{ "%.0f"|format(trip.budget_min) }}–₹{{ "%.0f"|format(trip.budget_max) }}</span>{% endif %}
               </div>
             </div>
             <div class="trip-right">
@@ -186,6 +187,10 @@
                 <span class="badge badge-active">{{ trip.status_label }}</span>
               {% elif trip.is_completed() %}
                 <span class="badge badge-completed">{{ trip.status_label }}</span>
+              {% elif trip.is_open() and trip.is_full() %}
+                <span class="badge badge-full">Full</span>
+              {% elif trip.is_open() and trip.joining_closed %}
+                <span class="badge badge-join-closed">Join Closed</span>
               {% elif trip.is_open() %}
                 <span class="badge badge-open">{{ trip.status_label }}</span>
               {% else %}
@@ -254,17 +259,19 @@
                 {% endif %}
               </div>
               <div class="trip-meta">
-                <span>🛫 {{ trip.departure_city }} → 📍 {{ trip.destination }}</span>
+                <span>🛫 {% if trip.departure_city %}{{ trip.departure_city }}{% else %}—{% endif %} → 📍 {{ trip.destination }}</span>
                 <span>📅 {{ trip.start_date.strftime('%b %d') }} – {{ trip.end_date.strftime('%b %d, %Y') }}</span>
                 <span>👥 {{ trip.member_count() }}/{{ trip.max_members }}</span>
-                <span>💰 ₹{{ "%.0f"|format(trip.budget_min) }}–₹{{ "%.0f"|format(trip.budget_max) }}</span>
+                {% if trip.budget_min or trip.budget_max %}<span>💰 ₹{{ "%.0f"|format(trip.budget_min) }}–₹{{ "%.0f"|format(trip.budget_max) }}</span>{% endif %}
                 {% if current_user.is_authenticated %}
                   <span>🙋 by {{ trip.owner.name.split()[0] }}</span>
                 {% endif %}
               </div>
             </div>
             <div class="trip-right">
-              {% if trip.joining_closed %}
+              {% if trip.is_full() %}
+                <span class="badge badge-full">Full</span>
+              {% elif trip.joining_closed %}
                 <span class="badge badge-join-closed">Join Closed</span>
               {% else %}
                 <span class="badge badge-open">Open</span>

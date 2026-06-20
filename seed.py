@@ -20,21 +20,24 @@ with app.app_context():
         email='aryan@test.com',
         password_hash=bcrypt.generate_password_hash('test123').decode(),
         travel_style='adventurous',
-        bio='Love road trips and mountains.'
+        bio='Love road trips and mountains.',
+        interests='hiking, photography, street food'
     )
     u2 = User(
         name='Priya Mehta',
         email='priya@test.com',
         password_hash=bcrypt.generate_password_hash('test123').decode(),
         travel_style='relaxed',
-        bio='Beach lover, foodie, budget traveller.'
+        bio='Beach lover, foodie, budget traveller.',
+        interests='beaches, yoga, local cuisine'
     )
     u3 = User(
         name='Rohan Patel',
         email='rohan@test.com',
         password_hash=bcrypt.generate_password_hash('test123').decode(),
         travel_style='flexible',
-        bio='Backpacker at heart.'
+        bio='Backpacker at heart.',
+        interests='trekking, hostels, culture'
     )
     db.session.add_all([u1, u2, u3])
     db.session.flush()
@@ -42,35 +45,51 @@ with app.app_context():
     today = date.today()
 
     # ── Trips ────────────────────────────────────────────────────
+    # Active trip: Aryan's Gujarat Road Trip (already in progress)
     t1 = Trip(
         owner_id=u1.id,
         title='Gujarat Road Trip',
-        destination='Ahmedabad → Dwarka → Somnath',
+        destination='Dwarka',
+        departure_city='Ahmedabad',
         start_date=today - timedelta(days=2),
         end_date=today + timedelta(days=3),
+        budget_min=4000,
+        budget_max=8000,
+        max_members=4,
         status='ACTIVE',
         is_public=True,
-        description='Covering the Saurashtra coast — temples, beaches, and local food.'
+        description='Covering the Saurashtra coast — temples, beaches, and local food. '
+                    'Stopping at Dwarka and Somnath.'
     )
+    # Open upcoming trip: Aryan's Manali Backpack
     t2 = Trip(
         owner_id=u1.id,
         title='Manali Backpack',
-        destination='Manali, Himachal Pradesh',
+        destination='Manali',
+        departure_city='Delhi',
         start_date=today + timedelta(days=30),
         end_date=today + timedelta(days=37),
+        budget_min=6000,
+        budget_max=12000,
+        max_members=5,
         status='OPEN',
         is_public=True,
-        description='High altitude trek and cafe hopping in the hills.'
+        description='High altitude trek and cafe hopping in the hills. Rohtang Pass day trip included.'
     )
+    # Open upcoming trip: Priya's Goa Weekend
     t3 = Trip(
         owner_id=u2.id,
         title='Goa Weekend',
         destination='North Goa',
+        departure_city='Mumbai',
         start_date=today + timedelta(days=10),
         end_date=today + timedelta(days=13),
+        budget_min=5000,
+        budget_max=9000,
+        max_members=4,
         status='OPEN',
         is_public=True,
-        description='Quick beach escape — sunsets, seafood, and chill vibes.'
+        description='Quick beach escape — sunsets, seafood, and chill vibes. Baga and Anjuna beach.'
     )
     db.session.add_all([t1, t2, t3])
     db.session.flush()
@@ -93,7 +112,7 @@ with app.app_context():
         Expense(trip_id=t1.id, paid_by_id=u1.id, title='Dinner at Somnath',
                 amount=600,  category='food',          date=today),
         Expense(trip_id=t1.id, paid_by_id=u2.id, title='Temple entry tickets',
-                amount=300,  category='activity',      date=today),
+                amount=300,  category='activities',    date=today),
         Expense(trip_id=t1.id, paid_by_id=u1.id, title='Breakfast',
                 amount=220,  category='food',          date=today),
     ]
@@ -102,6 +121,6 @@ with app.app_context():
 
     print('[OK] Database seeded successfully.\n')
     print('Test accounts:')
-    print('  aryan@test.com  / test123  -- 1 active trip, 1 upcoming, owner')
+    print('  aryan@test.com  / test123  -- 1 active trip (Gujarat), 1 upcoming (Manali), owner')
     print('  priya@test.com  / test123  -- member of Gujarat trip, owns Goa trip')
     print('  rohan@test.com  / test123  -- pending request on Gujarat trip')

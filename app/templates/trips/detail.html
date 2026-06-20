@@ -284,10 +284,12 @@
       <div>
         <h1 class="trip-title">{{ trip.title }}</h1>
         <div class="trip-sub">
-          <span>🛫 {{ trip.departure_city }} → 📍 {{ trip.destination }}</span>
+          <span>🛫 {% if trip.departure_city %}{{ trip.departure_city }}{% else %}—{% endif %} → 📍 {{ trip.destination }}</span>
           <span>📅 {{ trip.start_date.strftime('%b %d') }} – {{ trip.end_date.strftime('%b %d, %Y') }}</span>
           <span>👥 {{ trip.member_count() }}/{{ trip.max_members }} members</span>
+          {% if trip.budget_min or trip.budget_max %}
           <span>💰 ₹{{ "%.0f"|format(trip.budget_min) }}–₹{{ "%.0f"|format(trip.budget_max) }}</span>
+          {% endif %}
 
           {# Status badge #}
           {% if trip.is_cancelled() %}
@@ -306,8 +308,10 @@
             <span class="badge badge-upcoming">{{ trip.status_label }}</span>
           {% endif %}
 
-          {# Join deadline badge #}
-          {% if trip.join_deadline and trip.is_open() %}
+          {# Join deadline / full badge — shown alongside status #}
+          {% if trip.is_open() and trip.is_full() %}
+            <span class="badge badge-join-closed">Full</span>
+          {% elif trip.join_deadline and trip.is_open() and not trip.is_full() %}
             <span class="badge badge-upcoming">⏳ Join by {{ trip.join_deadline.strftime('%b %d') }}</span>
           {% elif trip.joining_closed and not trip.is_cancelled() and trip.is_open() %}
             <span class="badge badge-join-closed">Join Closed</span>
