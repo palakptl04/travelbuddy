@@ -20,13 +20,17 @@
   .trip-sub span { display: flex; align-items: center; gap: 4px; }
 
   .badge { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 100px; }
-  .badge-active      { background: #d1fae5; color: #065f46; }
-  .badge-upcoming    { background: #dbeafe; color: #1e40af; }
-  .badge-completed   { background: #f3f4f6; color: #6b7280; }
-  .badge-owner       { background: var(--green-light); color: var(--green-dark); }
-  .badge-join-closed { background: #fee2e2; color: #991b1b; }
+  .badge-active         { background: #d1fae5; color: #065f46; }
+  .badge-upcoming       { background: #dbeafe; color: #1e40af; }
+  .badge-completed      { background: #f3f4f6; color: #6b7280; }
+  .badge-owner          { background: var(--green-light); color: var(--green-dark); }
+  .badge-join-closed    { background: #fee2e2; color: #991b1b; }
+  .badge-awaiting       { background: #fef3c7; color: #92400e; }
+  .badge-confirmed      { background: #d1fae5; color: #065f46; }
+  .badge-cancelled      { background: #f3f4f6; color: #6b7280; }
+  .badge-open           { background: #dbeafe; color: #1e40af; }
 
-  .header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .header-actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
   .btn-primary {
     font-size: 13px; font-weight: 700; color: white; padding: 9px 18px; border-radius: 9px;
     background: var(--green); border: none; cursor: pointer; font-family: inherit; transition: background 0.15s;
@@ -44,11 +48,30 @@
     border: 1.5px solid #fca5a5; background: var(--white); cursor: pointer; font-family: inherit; transition: background 0.15s;
   }
   .btn-danger:hover { background: #fef2f2; }
+  .btn-confirm-trip {
+    font-size: 13px; font-weight: 700; color: white; padding: 9px 18px; border-radius: 9px;
+    background: #059669; border: none; cursor: pointer; font-family: inherit; transition: background 0.15s;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .btn-confirm-trip:hover { background: #047857; }
 
   .desc-card {
     background: var(--white); border: 1px solid var(--border); border-radius: 14px;
     padding: 18px 20px; font-size: 14px; color: var(--text); line-height: 1.6; margin-bottom: 24px;
   }
+
+  /* Status banner for AWAITING_CONFIRMATION */
+  .awaiting-banner {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    border: 1.5px solid #fcd34d; border-radius: 14px;
+    padding: 18px 22px; margin-bottom: 24px;
+    display: flex; align-items: flex-start; gap: 14px;
+  }
+  .awaiting-banner .banner-icon { font-size: 28px; flex-shrink: 0; }
+  .awaiting-banner .banner-text { flex: 1; }
+  .awaiting-banner .banner-title { font-size: 15px; font-weight: 800; color: #92400e; margin-bottom: 4px; }
+  .awaiting-banner .banner-sub { font-size: 13px; color: #78350f; line-height: 1.55; }
+  .awaiting-banner .banner-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 
   /* GRID */
   .trip-grid { display: grid; grid-template-columns: 1fr 340px; gap: 24px; align-items: start; }
@@ -61,7 +84,7 @@
   .panel-body { padding: 14px 18px; }
 
   /* MEMBERS */
-  .member-item { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .member-item { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
   .member-item:last-child { border-bottom: none; }
   .member-avatar {
     width: 32px; height: 32px; border-radius: 50%; background: var(--green); color: white;
@@ -69,6 +92,8 @@
   }
   .member-name { font-size: 13px; font-weight: 700; color: var(--text); }
   .member-role { font-size: 11px; color: var(--text-muted); }
+  .contact-line { font-size: 11px; color: var(--green-dark); margin-top: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .contact-hidden { font-size: 11px; color: var(--text-muted); margin-top: 3px; font-style: italic; }
 
   /* BUDDY REQUESTS */
   .request-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
@@ -81,22 +106,16 @@
   .req-name { font-size: 13px; font-weight: 700; color: var(--text); }
   .profile-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.5; }
   .profile-bio { font-size: 11px; color: var(--text-muted); margin-top: 3px; font-style: italic; line-height: 1.5; }
-  /* Travel style chip – soft purple */
   .profile-tag-style {
     display: inline-block; font-size: 10px; font-weight: 700;
     color: #6d28d9; background: #ede9fe;
     padding: 2px 9px; border-radius: 100px; margin: 2px 4px 0 0;
   }
-  /* Interest chip – teal */
   .profile-tag-interest {
     display: inline-block; font-size: 10px; font-weight: 700;
     color: var(--green-dark); background: var(--green-light);
     padding: 2px 9px; border-radius: 100px; margin: 2px 4px 0 0;
   }
-  /* Keep old .profile-tag as fallback alias */
-  .profile-tag { display: inline-block; font-size: 10px; font-weight: 700; color: var(--green-dark);
-    background: var(--green-light); padding: 1px 8px; border-radius: 100px; margin: 2px 4px 0 0; }
-  .contact-line { font-size: 11px; color: var(--green-dark); margin-top: 3px; }
   .req-actions { display: flex; gap: 6px; flex-shrink: 0; }
   .btn-accept {
     width: 28px; height: 28px; border-radius: 8px; background: #d1fae5; border: none; cursor: pointer;
@@ -168,7 +187,6 @@
   .td-amount { font-weight: 800; color: var(--text); text-align: right; white-space: nowrap; }
   .td-actions { text-align: right; }
 
-  /* category pill */
   .cat-pill {
     display: inline-flex; align-items: center; gap: 4px;
     font-size: 10px; font-weight: 700; padding: 2px 9px; border-radius: 100px;
@@ -180,7 +198,6 @@
   .cat-activities    { background: #d1fae5; color: #065f46; }
   .cat-other         { background: #f3f4f6; color: #374151; }
 
-  /* delete btn in table */
   .btn-tbl-delete {
     width: 26px; height: 26px; border-radius: 7px; background: #fee2e2; border: none;
     cursor: pointer; font-size: 12px; display: inline-flex; align-items: center;
@@ -201,7 +218,6 @@
   .settle-balance.negative { color: #dc2626; }
   .settle-balance.zero     { color: var(--text-muted); }
 
-  /* who-owes-whom card */
   .owes-section {
     margin-top: 16px; border-top: 1px solid var(--border); padding-top: 14px;
   }
@@ -223,7 +239,6 @@
     border-radius: 9px; background: #d1fae5; font-size: 13px; font-weight: 600; color: #065f46;
   }
 
-  /* Mark Settled button */
   .btn-settle {
     font-size: 11px; font-weight: 700; padding: 5px 12px; border-radius: 7px;
     background: var(--green); color: white; border: none; cursor: pointer;
@@ -242,8 +257,20 @@
   .lock-notice .lock-icon { font-size: 32px; margin-bottom: 10px; }
   .lock-notice p { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
 
+  /* Open Roster badge */
+  .roster-badge {
+    font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 100px;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .roster-open   { background: #d1fae5; color: #065f46; }
+  .roster-closed { background: #f3f4f6; color: #6b7280; }
+
   .empty-row { text-align: center; padding: 20px 0; color: var(--text-muted); font-size: 13px; }
   .empty-row .icon { font-size: 26px; margin-bottom: 6px; display: block; }
+
+  @media (max-width: 600px) {
+    .trip-page { padding: 20px 16px 40px; }
+  }
 {% endblock %}
 
 {% block content %}
@@ -252,6 +279,7 @@
 
     <a href="{{ url_for('trips.index') }}" class="btn-back">← Back to Trips</a>
 
+    {# ── Trip Header ─────────────────────────────────────────────────────── #}
     <div class="trip-header">
       <div>
         <h1 class="trip-title">{{ trip.title }}</h1>
@@ -260,23 +288,46 @@
           <span>📅 {{ trip.start_date.strftime('%b %d') }} – {{ trip.end_date.strftime('%b %d, %Y') }}</span>
           <span>👥 {{ trip.member_count() }}/{{ trip.max_members }} members</span>
           <span>💰 ₹{{ "%.0f"|format(trip.budget_min) }}–₹{{ "%.0f"|format(trip.budget_max) }}</span>
+
+          {# Status badge #}
           {% if trip.is_cancelled() %}
-            <span class="badge badge-join-closed">{{ trip.status_label }}</span>
+            <span class="badge badge-cancelled">{{ trip.status_label }}</span>
           {% elif trip.is_active() %}
             <span class="badge badge-active">{{ trip.status_label }}</span>
           {% elif trip.is_completed() %}
             <span class="badge badge-completed">{{ trip.status_label }}</span>
+          {% elif trip.is_confirmed() %}
+            <span class="badge badge-confirmed">{{ trip.status_label }}</span>
+          {% elif trip.is_awaiting_confirmation() %}
+            <span class="badge badge-awaiting">{{ trip.status_label }}</span>
           {% elif trip.is_open() %}
             <span class="badge badge-open">{{ trip.status_label }}</span>
           {% else %}
             <span class="badge badge-upcoming">{{ trip.status_label }}</span>
           {% endif %}
-          {% if trip.joining_closed and not trip.is_cancelled() %}
+
+          {# Join deadline badge #}
+          {% if trip.join_deadline and trip.is_open() %}
+            <span class="badge badge-upcoming">⏳ Join by {{ trip.join_deadline.strftime('%b %d') }}</span>
+          {% elif trip.joining_closed and not trip.is_cancelled() and trip.is_open() %}
             <span class="badge badge-join-closed">Join Closed</span>
           {% endif %}
+
+          {# Owner badge #}
           {% if is_owner %}<span class="badge badge-owner">Owner</span>{% endif %}
+
+          {# Open/Closed roster badge — shown after confirmation #}
+          {% if trip.is_confirmed() or trip.is_active() or trip.is_completed() %}
+            {% if trip.open_roster %}
+              <span class="roster-badge roster-open">👥 Open Roster</span>
+            {% else %}
+              <span class="roster-badge roster-closed">🔒 Private Roster</span>
+            {% endif %}
+          {% endif %}
         </div>
       </div>
+
+      {# ── Header Action Buttons ── #}
       <div class="header-actions">
         {% if is_owner %}
           <a href="{{ url_for('trips.edit', trip_id=trip.id) }}" class="btn-secondary">✏️ Edit</a>
@@ -288,18 +339,8 @@
           </form>
           {% endif %}
         {% elif is_member %}
-          {% if trip.is_awaiting_confirmation() and membership.status == 'accepted' %}
-            {% if not membership.is_confirmed %}
-            <form method="POST" action="{{ url_for('trips.confirm_participation', trip_id=trip.id) }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn-primary">✅ Confirm Participation</button>
-            </form>
-            {% else %}
-              <button class="btn-secondary" disabled>Participation Confirmed</button>
-            {% endif %}
-          {% endif %}
-          {# Accepted member: show Leave Trip only while joining is open #}
-          {% if not trip.joining_closed %}
+          {# Accepted member: show Leave Trip only while joining is still open (deadline not passed) #}
+          {% if trip.can_leave() %}
           <form method="POST" action="{{ url_for('trips.leave', trip_id=trip.id) }}"
                 onsubmit="return confirm('Leave this trip?');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -307,11 +348,12 @@
           </form>
           {% endif %}
         {% else %}
+          {# Non-member view #}
           {% if membership and membership.status == 'pending' %}
             <button class="btn-secondary" disabled>Request Pending</button>
           {% elif membership and membership.status == 'declined' %}
             <button class="btn-secondary" disabled>Request Declined</button>
-          {% elif trip.is_open() and not trip.is_full() %}
+          {% elif trip.can_join() %}
             <form method="POST" action="{{ url_for('trips.send_request', trip_id=trip.id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button type="submit" class="btn-primary">🤝 Send Buddy Request</button>
@@ -325,10 +367,51 @@
       </div>
     </div>
 
+    {# ── Description ──────────────────────────────────────────────────────── #}
     {% if trip.description %}
       <div class="desc-card">{{ trip.description }}</div>
     {% endif %}
 
+    {# ── AWAITING CONFIRMATION banner (owner sees action buttons) ─────────── #}
+    {% if trip.is_awaiting_confirmation() and is_owner %}
+    <div class="awaiting-banner">
+      <div class="banner-icon">⏳</div>
+      <div class="banner-text">
+        <div class="banner-title">Trip Awaiting Your Decision</div>
+        <div class="banner-sub">
+          The join deadline has passed. The member list is now locked ({{ trip.member_count() }} members).
+          Confirm the trip to enable expenses and share contact details, or cancel if plans have changed.
+        </div>
+        <div class="banner-actions">
+          <form method="POST" action="{{ url_for('trips.confirm_trip', trip_id=trip.id) }}"
+                onsubmit="return confirm('Confirm this trip? Members will be able to see contact details and add expenses.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn-confirm-trip">✅ Confirm Trip</button>
+          </form>
+          {% if trip.can_cancel() %}
+          <form method="POST" action="{{ url_for('trips.cancel', trip_id=trip.id) }}"
+                onsubmit="return confirm('Cancel this trip? This cannot be undone.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn-danger">🚫 Cancel Trip</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% elif trip.is_awaiting_confirmation() and is_member %}
+    <div class="awaiting-banner">
+      <div class="banner-icon">⏳</div>
+      <div class="banner-text">
+        <div class="banner-title">Awaiting Trip Confirmation</div>
+        <div class="banner-sub">
+          The join deadline has passed. The trip owner is reviewing the member list and will confirm or cancel shortly.
+          Contact details and expenses will be available once the trip is confirmed.
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── Lock notice for non-members ──────────────────────────────────────── #}
     {% if not is_member %}
     <div class="lock-notice">
       <div class="lock-icon">🔒</div>
@@ -340,7 +423,7 @@
       <!-- LEFT COLUMN -->
       <div class="left-col">
 
-        <!-- EXPENSES -->
+        {# ── EXPENSES panel ──────────────────────────────────────────────── #}
         {% if is_member %}
         <div class="panel">
           <div class="panel-head">
@@ -354,10 +437,8 @@
 
             {% if expense_form %}
             {%- if trip.can_add_expense() %}
-            {# ── Add Expense Form (only available once the trip is confirmed or active) ── #}
             <form method="POST" action="{{ url_for('expenses.add', trip_id=trip.id) }}" class="expense-form-card" novalidate>
               {{ expense_form.hidden_tag() }}
-              {# Hidden paid_by_id — always current user, set server-side #}
               {{ expense_form.paid_by_id(type="hidden") }}
               <div class="form-row">
                 <div class="form-group">
@@ -382,15 +463,21 @@
               </div>
             </form>
             {%- else %}
-            {# Trip not ready for expenses yet #}
             <div style="background:var(--bg);border:1.5px dashed var(--border);border-radius:12px;padding:16px 18px;margin-bottom:20px;text-align:center;">
               <span style="font-size:20px;">🔒</span>
-              <p style="font-size:13px;color:var(--text-muted);margin:6px 0 0;">Expenses can be added only after the trip is confirmed or active.</p>
+              <p style="font-size:13px;color:var(--text-muted);margin:6px 0 0;">
+                {% if trip.is_awaiting_confirmation() %}
+                  Expenses will be enabled once the trip owner confirms the trip.
+                {% elif trip.is_cancelled() %}
+                  This trip was cancelled. Expenses are disabled.
+                {% else %}
+                  Expenses can be added only after the trip is confirmed or active.
+                {% endif %}
+              </p>
             </div>
             {%- endif %}
             {% endif %}
 
-            {# ── Expense History Table ── #}
             {% if expenses_list %}
               {% set cat_icons  = {'food':'🍜','transport':'🚌','accommodation':'🏨','activities':'🎟️','other':'💵'} %}
               {% set cat_labels = {'food':'Food','transport':'Transport','accommodation':'Accommodation','activities':'Activities','other':'Other'} %}
@@ -422,11 +509,11 @@
                       <td class="td-actions">
                         {% if is_member and (exp.paid_by_id == current_user.id or is_owner) %}
                         <form method="POST"
-      action="{{ url_for('expenses.delete', trip_id=trip.id, expense_id=exp.id) }}"
-      style="display:inline;"
-      onsubmit="return confirm('Remove this expense?');">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" class="btn-tbl-delete" title="Delete expense">🗑</button>
+    action="{{ url_for('expenses.delete', trip_id=trip.id, expense_id=exp.id) }}"
+    style="display:inline;"
+    onsubmit="return confirm('Remove this expense?');">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button type="submit" class="btn-tbl-delete" title="Delete expense">🗑</button>
 </form>
                         {% endif %}
                       </td>
@@ -440,9 +527,9 @@
             {% endif %}
           </div>
         </div>
-        {% endif %} {# end is_member expenses panel #}
+        {% endif %}
 
-        <!-- SETTLEMENT SUMMARY -->
+        {# ── SETTLEMENT SUMMARY ──────────────────────────────────────────── #}
         {% if is_member %}
         <div class="panel" id="settlement-summary">
           <div class="panel-head">
@@ -450,7 +537,6 @@
           </div>
           <div class="panel-body">
             {% if expenses_list %}
-              {# Per-person balance breakdown #}
               {% for s in settlement %}
               <div class="settlement-item">
                 <div>
@@ -467,7 +553,6 @@
               </div>
               {% endfor %}
 
-              {# Who Owes Whom #}
               <div class="owes-section">
                 <div class="owes-label">💸 Who pays whom</div>
                 {% if settlements %}
@@ -479,7 +564,6 @@
                     <span class="owes-arrow">pays →</span>
                     <span class="owes-creditor">{{ t.creditor.name.split()[0] }}</span>
                     <span class="owes-amount">₹{{ "%.2f"|format(t.amount) }}</span>
-                    {# Show Mark Settled only to the debtor; show badge if already settled #}
                     {% if is_settled %}
                       <span class="badge-settled-row">✓ Settled</span>
                     {% elif t.debtor.id == current_user.id %}
@@ -502,69 +586,73 @@
                 {% endif %}
               </div>
 
-
             {% else %}
               <div class="empty-row"><span class="icon">⚖️</span>Settlement will appear once expenses are added.</div>
             {% endif %}
           </div>
         </div>
-        {% endif %} {# end is_member settlement panel #}
+        {% endif %}
 
       </div>
 
       <!-- RIGHT COLUMN -->
       <div class="right-col">
 
-        <!-- BUDDY REQUESTS (owner only) -->
-        {% if is_owner %}
+        {# ── BUDDY REQUESTS (owner only, OPEN status) ────────────────────── #}
+        {% if is_owner and pending_requests %}
         <div class="panel" id="buddy-requests">
           <div class="panel-head">
             <div class="panel-title">
               🤝 Buddy Requests
-              {% if pending_requests %}<span class="panel-count">{{ pending_requests|length }}</span>{% endif %}
+              <span class="panel-count">{{ pending_requests|length }}</span>
             </div>
           </div>
           <div class="panel-body">
-            {% if pending_requests %}
-              {% for req in pending_requests %}
-              <div class="request-item">
-                <div class="req-avatar">{{ req.user.name[0].upper() }}</div>
-                <div class="req-info">
-                  <div class="req-name">{{ req.user.name }}</div>
-                  <div class="profile-meta">
-                    <span class="profile-tag-style">{{ req.user.travel_style|capitalize }}</span>
-                    {% for interest in req.user.interests_list() %}<span class="profile-tag-interest">{{ interest }}</span>{% endfor %}
-                  </div>
-                  {% if req.user.bio %}<div class="profile-bio">"{{ req.user.bio }}"</div>{% endif %}
+            {% for req in pending_requests %}
+            <div class="request-item">
+              <div class="req-avatar">{{ req.user.name[0].upper() }}</div>
+              <div class="req-info">
+                <div class="req-name">{{ req.user.name }}</div>
+                <div class="profile-meta">
+                  <span class="profile-tag-style">{{ req.user.travel_style|capitalize }}</span>
+                  {% for interest in req.user.interests_list() %}<span class="profile-tag-interest">{{ interest }}</span>{% endfor %}
                 </div>
-                <div class="req-actions">
-                  <form method="POST" action="{{ url_for('trips.accept_request', trip_id=trip.id, member_id=req.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn-accept" title="Accept">✓</button>
-                  </form>
-                  <form method="POST" action="{{ url_for('trips.decline_request', trip_id=trip.id, member_id=req.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn-decline" title="Decline">✕</button>
-                  </form>
-                </div>
+                {% if req.user.bio %}<div class="profile-bio">"{{ req.user.bio }}"</div>{% endif %}
               </div>
-              {% endfor %}
-            {% else %}
-              <div class="empty-row"><span class="icon">🤷</span>No pending requests.</div>
-            {% endif %}
+              <div class="req-actions">
+                {% if trip.is_open() and not trip.joining_closed %}
+                <form method="POST" action="{{ url_for('trips.accept_request', trip_id=trip.id, member_id=req.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn-accept" title="Accept">✓</button>
+                </form>
+                {% endif %}
+                <form method="POST" action="{{ url_for('trips.decline_request', trip_id=trip.id, member_id=req.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn-decline" title="Decline">✕</button>
+                </form>
+              </div>
+            </div>
+            {% endfor %}
           </div>
         </div>
         {% endif %}
 
-        <!-- MEMBERS -->
+        {# ── MEMBERS panel ───────────────────────────────────────────────── #}
         <div class="panel">
           <div class="panel-head">
             <div class="panel-title">
               👥 Members
               <span class="panel-count">{{ trip.member_count() }}</span>
             </div>
+            {% if trip.join_deadline %}
+              <span style="font-size:11px;color:var(--text-muted);">
+                {% if trip.join_deadline_passed %}🔒 Roster locked{% else %}⏳ Join by {{ trip.join_deadline.strftime('%b %d') }}{% endif %}
+              </span>
+            {% endif %}
           </div>
           <div class="panel-body">
+
+            {# ── Owner entry ── #}
             <div class="member-item">
               <div class="member-avatar">{{ trip.owner.name[0].upper() }}</div>
               <div>
@@ -575,11 +663,24 @@
                   {% for interest in trip.owner.interests_list() %}<span class="profile-tag-interest">{{ interest }}</span>{% endfor %}
                 </div>
                 {% if trip.owner.bio %}<div class="profile-bio">"{{ trip.owner.bio }}"</div>{% endif %}
+
+                {# Contact line for owner — visible per rules #}
                 {% if is_member %}
-                  <div class="contact-line">✉️ {{ trip.owner.email }}{% if trip.owner.phone %} · 📞 {{ trip.owner.phone }}{% endif %}</div>
+                  {% if contact_visible.get(trip.owner_id, False) %}
+                    <div class="contact-line">
+                      ✉️ {{ trip.owner.get_email() }}
+                      {% if trip.owner.get_phone() %}<span>· 📞 {{ trip.owner.get_phone() }}</span>{% endif %}
+                    </div>
+                  {% elif trip.is_confirmed() or trip.is_active() or trip.is_completed() %}
+                    <div class="contact-hidden">Contact details not shared</div>
+                  {% else %}
+                    <div class="contact-hidden">Available after trip confirmation</div>
+                  {% endif %}
                 {% endif %}
               </div>
             </div>
+
+            {# ── Accepted members ── #}
             {% for m in trip.accepted_members() %}
             <div class="member-item">
               <div class="member-avatar">{{ m.user.name[0].upper() }}</div>
@@ -591,12 +692,24 @@
                   {% for interest in m.user.interests_list() %}<span class="profile-tag-interest">{{ interest }}</span>{% endfor %}
                 </div>
                 {% if m.user.bio %}<div class="profile-bio">"{{ m.user.bio }}"</div>{% endif %}
+
+                {# Contact visibility per rules #}
                 {% if is_member %}
-                  <div class="contact-line">✉️ {{ m.user.email }}{% if m.user.phone %} · 📞 {{ m.user.phone }}{% endif %}</div>
+                  {% if contact_visible.get(m.user_id, False) %}
+                    <div class="contact-line">
+                      ✉️ {{ m.user.get_email() }}
+                      {% if m.user.get_phone() %}<span>· 📞 {{ m.user.get_phone() }}</span>{% endif %}
+                    </div>
+                  {% elif trip.is_confirmed() or trip.is_active() or trip.is_completed() %}
+                    <div class="contact-hidden">Contact details not shared</div>
+                  {% else %}
+                    <div class="contact-hidden">Available after trip confirmation</div>
+                  {% endif %}
                 {% endif %}
               </div>
             </div>
             {% endfor %}
+
           </div>
         </div>
 

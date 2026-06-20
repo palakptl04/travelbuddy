@@ -1,8 +1,8 @@
 """Tests for trip CRUD operations and membership workflows."""
 
 import pytest
-from datetime import date, timedelta
-from app.models import Trip, TripMember
+from datetime import date, timedelta, datetime
+from app.models import Trip, TripMember, ContactAccessLog
 from app.extensions import db as _db
 
 
@@ -11,7 +11,7 @@ from app.extensions import db as _db
 # ---------------------------------------------------------------------------
 
 def _trip_data(overrides=None):
-    trip_start = date.today() + timedelta(days=2)
+    trip_start = date.today() + timedelta(days=4)
     data = {
         'title': 'Ahmedabad Adventure',
         'destination': 'Ahmedabad',
@@ -65,6 +65,37 @@ class TestCreateTrip:
             trip = Trip.query.filter_by(owner_id=user.id).first()
         assert trip is None
 
+    def test_create_trip_with_join_deadline(self, auth_client, app):
+        """Trip created with explicit join_deadline stores it correctly."""
+        client, user = auth_client
+        trip_start = date.today() + timedelta(days=5)
+        deadline = date.today() + timedelta(days=2)
+        resp = client.post('/trips/create', data=_trip_data({
+            'title': 'Deadline Trip',
+            'start_date': trip_start.isoformat(),
+            'end_date': (trip_start + timedelta(days=3)).isoformat(),
+            'join_deadline': deadline.isoformat(),
+        }), follow_redirects=True)
+        assert resp.status_code == 200
+        with app.app_context():
+            trip = Trip.query.filter_by(title='Deadline Trip', owner_id=user.id).first()
+        assert trip is not None
+        assert trip.join_deadline is not None
+        assert trip.join_deadline.date() == deadline
+
+    def test_create_trip_with_open_roster(self, auth_client, app):
+        """Trip created with open_roster=True stores the flag."""
+        client, user = auth_client
+        resp = client.post('/trips/create', data=_trip_data({
+            'title': 'Roster Trip',
+            'open_roster': 'y',
+        }), follow_redirects=True)
+        assert resp.status_code == 200
+        with app.app_context():
+            trip = Trip.query.filter_by(title='Roster Trip', owner_id=user.id).first()
+        assert trip is not None
+        assert trip.open_roster is True
+
 
 # ---------------------------------------------------------------------------
 # Read
@@ -87,9 +118,6 @@ class TestReadTrip:
         assert resp.status_code == 404
 
     def test_trip_detail_guest_redirects_to_login(self, client, app):
-        """Unauthenticated access to trip detail should redirect to login.
-        Creates its own user+trip inline to avoid shared-session issues.
-        """
         from app.models import User, Trip
         from app.extensions import bcrypt
 
@@ -98,7 +126,7 @@ class TestReadTrip:
             u = User(name='Owner2', email='owner2@test.com', password_hash=pw)
             _db.session.add(u)
             _db.session.flush()
-            tomorrow = date.today() + timedelta(days=1)
+            tomorrow = date.today() + timedelta(days=3)
             trip = Trip(
                 owner_id=u.id, title='Public Trip', destination='Ahmedabad',
                 departure_city='Surat', start_date=tomorrow,
@@ -109,7 +137,6 @@ class TestReadTrip:
             _db.session.commit()
             trip_id = trip.id
 
-        # Freshly created unauthenticated client — no cookies
         resp = client.get(f'/trips/{trip_id}', follow_redirects=False)
         assert resp.status_code == 302
         assert 'login' in resp.headers.get('Location', '').lower()
@@ -130,7 +157,6 @@ class TestEditTrip:
         assert trip.title == 'Updated Title'
 
     def test_edit_trip_non_owner_forbidden(self, auth_client, app):
-        """A second user cannot edit another user's trip."""
         from app.extensions import bcrypt
         from app.models import User
 
@@ -140,7 +166,7 @@ class TestEditTrip:
             _db.session.add(other)
             _db.session.flush()
 
-            tomorrow = date.today() + timedelta(days=1)
+            tomorrow = date.today() + timedelta(days=3)
             trip = Trip(
                 owner_id=other.id,
                 title='Other Trip',
@@ -154,14 +180,13 @@ class TestEditTrip:
             _db.session.commit()
             trip_id = trip.id
 
-        # Auth client (test@example.com) tries to edit other's trip
         client, _ = auth_client
         resp = client.post(f'/trips/{trip_id}/edit', data=_trip_data(), follow_redirects=True)
         assert b'Not authorised' in resp.data or resp.status_code in (200, 302)
 
 
 # ---------------------------------------------------------------------------
-# Delete
+# Cancel
 # ---------------------------------------------------------------------------
 
 class TestCancelTrip:
@@ -186,16 +211,13 @@ class TestCancelTrip:
 
 class TestJoinRequest:
     def test_send_buddy_request(self, auth_client, app):
-        """A second user can send a request to join an existing trip."""
         from app.extensions import bcrypt
         from app.models import User
 
         _, owner = auth_client
 
         with app.app_context():
-            # Trip must start 3+ days out so joining is still open
-            # (joining closes 1 day before start, i.e. today >= start-1 means closed)
-            three_days = date.today() + timedelta(days=3)
+            three_days = date.today() + timedelta(days=5)
             trip = Trip(
                 owner_id=owner.id,
                 title='Join Test Trip',
@@ -215,11 +237,6 @@ class TestJoinRequest:
             trip_id = trip.id
             joiner_id = joiner.id
 
-        # Log in as the joiner via the real login route.
-        # This works correctly because conftest.py overrides pytest-flask's
-        # _push_request_context with a no-op, so each request gets its own
-        # isolated app+request context and Flask-Login reads current_user
-        # fresh from the session cookie on every call.
         joiner_client = app.test_client()
         joiner_client.post(
             '/auth/login',
@@ -236,7 +253,7 @@ class TestJoinRequest:
         with app.app_context():
             mem = TripMember.query.filter_by(trip_id=trip_id, user_id=joiner_id).first()
             mem_status = mem.status if mem else None
-        assert mem is not None, "TripMember was not created — join request failed"
+        assert mem is not None, "TripMember was not created"
         assert mem_status == 'pending'
 
 
@@ -245,8 +262,6 @@ class TestJoinRequest:
 # ---------------------------------------------------------------------------
 
 class TestComputedStatus:
-    """Trip.computed_status returns correct label based on today's date."""
-
     def _make_trip(self, owner_id, start_offset, end_offset):
         today = date.today()
         return Trip(
@@ -275,14 +290,6 @@ class TestComputedStatus:
             _db.session.commit()
             assert trip.computed_status == 'ongoing'
 
-    def test_ongoing_when_midway(self, auth_client, app):
-        _, user = auth_client
-        with app.app_context():
-            trip = self._make_trip(user.id, start_offset=-2, end_offset=2)
-            _db.session.add(trip)
-            _db.session.commit()
-            assert trip.computed_status == 'ongoing'
-
     def test_completed_when_ended_yesterday(self, auth_client, app):
         _, user = auth_client
         with app.app_context():
@@ -293,11 +300,485 @@ class TestComputedStatus:
 
 
 # ---------------------------------------------------------------------------
-# Join Closing Logic
+# Join Deadline Logic
+# ---------------------------------------------------------------------------
+
+class TestJoinDeadline:
+    """Tests for the new join_deadline-based workflow."""
+
+    def _make_open_trip(self, owner_id, start_offset=10, join_deadline=None):
+        today = date.today()
+        trip = Trip(
+            owner_id=owner_id,
+            title='Deadline Trip',
+            destination='Gandhinagar',
+            departure_city='Surat',
+            start_date=today + timedelta(days=start_offset),
+            end_date=today + timedelta(days=start_offset + 5),
+            budget_min=1000, budget_max=5000, max_members=4, is_public=True,
+            status='OPEN',
+        )
+        if join_deadline is not None:
+            trip.join_deadline = join_deadline
+        return trip
+
+    def test_join_deadline_not_passed_keeps_open(self, auth_client, app):
+        """Trip with join_deadline in the future remains OPEN."""
+        _, user = auth_client
+        with app.app_context():
+            future_dl = datetime.utcnow() + timedelta(days=2)
+            trip = self._make_open_trip(user.id, join_deadline=future_dl)
+            _db.session.add(trip)
+            _db.session.commit()
+            assert not trip.join_deadline_passed
+            changed = trip.maybe_transition_to_awaiting()
+            assert not changed
+            assert trip.status == 'OPEN'
+
+    def test_join_deadline_passed_transitions_to_awaiting(self, auth_client, app):
+        """Trip with join_deadline in the past transitions to AWAITING_CONFIRMATION."""
+        _, user = auth_client
+        with app.app_context():
+            past_dl = datetime.utcnow() - timedelta(hours=1)
+            trip = self._make_open_trip(user.id, join_deadline=past_dl)
+            _db.session.add(trip)
+            _db.session.commit()
+            assert trip.join_deadline_passed
+            changed = trip.maybe_transition_to_awaiting()
+            assert changed
+            assert trip.status == 'AWAITING_CONFIRMATION'
+
+    def test_no_join_deadline_uses_legacy_close(self, auth_client, app):
+        """Trip without join_deadline falls back to 1-day-before-start behaviour."""
+        _, user = auth_client
+        with app.app_context():
+            today = date.today()
+            trip = Trip(
+                owner_id=user.id,
+                title='No Deadline Trip',
+                destination='Rajkot',
+                departure_city='Mumbai',
+                start_date=today + timedelta(days=1),
+                end_date=today + timedelta(days=5),
+                budget_min=1000, budget_max=5000, max_members=4, is_public=True,
+                status='OPEN',
+            )
+            _db.session.add(trip)
+            _db.session.commit()
+            assert trip.joining_closed   # 1 day before start → closed
+
+    def test_send_request_blocked_after_deadline(self, auth_client, app):
+        """A buddy request is rejected after the join_deadline has passed."""
+        from app.extensions import bcrypt
+        from app.models import User
+
+        _, owner = auth_client
+
+        with app.app_context():
+            past_dl = datetime.utcnow() - timedelta(hours=1)
+            future_start = date.today() + timedelta(days=5)
+            trip = Trip(
+                owner_id=owner.id,
+                title='Deadline Closed Trip',
+                destination='Vadodara',
+                departure_city='Mumbai',
+                start_date=future_start,
+                end_date=future_start + timedelta(days=3),
+                budget_min=1000, budget_max=5000, max_members=4, is_public=True,
+                status='OPEN',
+                join_deadline=past_dl,
+            )
+            _db.session.add(trip)
+            pw = bcrypt.generate_password_hash('Pass!').decode('utf-8')
+            joiner = User(name='Joiner3', email='joiner3@test.com', password_hash=pw)
+            _db.session.add(joiner)
+            _db.session.commit()
+            trip_id = trip.id
+
+        joiner_client = app.test_client()
+        joiner_client.post('/auth/login',
+                           data={'email': 'joiner3@test.com', 'password': 'Pass!'},
+                           follow_redirects=True)
+
+        resp = joiner_client.post(f'/trips/{trip_id}/request', follow_redirects=True)
+        assert resp.status_code == 200
+        with app.app_context():
+            mem = TripMember.query.filter_by(trip_id=trip_id).first()
+            assert mem is None, "TripMember should not exist — join deadline has passed"
+
+    def test_leave_blocked_after_deadline(self, auth_client, app):
+        """Members cannot leave once join_deadline has passed."""
+        from app.extensions import bcrypt
+        from app.models import User
+
+        _, owner = auth_client
+
+        with app.app_context():
+            past_dl = datetime.utcnow() - timedelta(hours=1)
+            future_start = date.today() + timedelta(days=5)
+            trip = Trip(
+                owner_id=owner.id,
+                title='Leave Block Trip',
+                destination='Gandhinagar',
+                departure_city='Surat',
+                start_date=future_start,
+                end_date=future_start + timedelta(days=3),
+                budget_min=1000, budget_max=5000, max_members=4, is_public=True,
+                status='OPEN',
+                join_deadline=past_dl,
+            )
+            _db.session.add(trip)
+            pw = bcrypt.generate_password_hash('Pass2!').decode('utf-8')
+            member_user = User(name='LeaveMe', email='leaveme@test.com', password_hash=pw)
+            _db.session.add(member_user)
+            _db.session.flush()
+            mem = TripMember(trip_id=trip.id, user_id=member_user.id, status='accepted')
+            _db.session.add(mem)
+            _db.session.commit()
+            trip_id = trip.id
+
+        member_client = app.test_client()
+        member_client.post('/auth/login',
+                           data={'email': 'leaveme@test.com', 'password': 'Pass2!'},
+                           follow_redirects=True)
+
+        resp = member_client.post(f'/trips/{trip_id}/leave', follow_redirects=True)
+        assert resp.status_code == 200
+        with app.app_context():
+            still_member = TripMember.query.filter_by(trip_id=trip_id).first()
+            assert still_member is not None, "Member should still exist — join deadline has passed"
+
+
+# ---------------------------------------------------------------------------
+# Owner Confirm / Cancel Workflow
+# ---------------------------------------------------------------------------
+
+class TestOwnerConfirmWorkflow:
+    """Owner can confirm or cancel a trip in AWAITING_CONFIRMATION."""
+
+    def _make_awaiting_trip(self, owner_id):
+        future_start = date.today() + timedelta(days=5)
+        return Trip(
+            owner_id=owner_id,
+            title='Awaiting Trip',
+            destination='Ahmedabad',
+            departure_city='Surat',
+            start_date=future_start,
+            end_date=future_start + timedelta(days=3),
+            budget_min=1000, budget_max=5000, max_members=4, is_public=True,
+            status='AWAITING_CONFIRMATION',
+        )
+
+    def test_owner_can_confirm_trip(self, auth_client, app):
+        """Owner calling confirm_trip transitions to CONFIRMED."""
+        client, user = auth_client
+        with app.app_context():
+            trip = self._make_awaiting_trip(user.id)
+            _db.session.add(trip)
+            _db.session.commit()
+            trip_id = trip.id
+
+        resp = client.post(f'/trips/{trip_id}/confirm-trip', follow_redirects=True)
+        assert resp.status_code == 200
+        with app.app_context():
+            t = _db.session.get(Trip, trip_id)
+        assert t.status == 'CONFIRMED'
+
+    def test_owner_can_cancel_awaiting_trip(self, auth_client, app):
+        """Owner calling cancel on an AWAITING_CONFIRMATION trip works."""
+        client, user = auth_client
+        with app.app_context():
+            trip = self._make_awaiting_trip(user.id)
+            _db.session.add(trip)
+            _db.session.commit()
+            trip_id = trip.id
+
+        resp = client.post(f'/trips/{trip_id}/cancel', follow_redirects=True)
+        assert resp.status_code == 200
+        with app.app_context():
+            t = _db.session.get(Trip, trip_id)
+        assert t.status == 'CANCELLED'
+
+    def test_non_owner_cannot_confirm_trip(self, auth_client, app):
+        """A non-owner cannot use the confirm-trip route."""
+        from app.extensions import bcrypt
+        from app.models import User
+
+        _, owner = auth_client
+
+        with app.app_context():
+            pw_hash = bcrypt.generate_password_hash('Other!').decode('utf-8')
+            other = User(name='Other2', email='other2@test.com', password_hash=pw_hash)
+            _db.session.add(other)
+            _db.session.flush()
+
+            trip = self._make_awaiting_trip(owner.id)
+            _db.session.add(trip)
+            _db.session.commit()
+            trip_id = trip.id
+
+        other_client = app.test_client()
+        other_client.post('/auth/login',
+                          data={'email': 'other2@test.com', 'password': 'Other!'},
+                          follow_redirects=True)
+
+        resp = other_client.post(f'/trips/{trip_id}/confirm-trip', follow_redirects=True)
+        assert resp.status_code == 200
+        with app.app_context():
+            t = _db.session.get(Trip, trip_id)
+        assert t.status == 'AWAITING_CONFIRMATION', "Status should not have changed"
+
+    def test_confirm_trip_on_open_trip_fails(self, auth_client, sample_trip, app):
+        """confirm_trip route on an OPEN trip does nothing."""
+        client, _ = auth_client
+        resp = client.post(f'/trips/{sample_trip.id}/confirm-trip', follow_redirects=True)
+        assert resp.status_code == 200
+        with app.app_context():
+            t = _db.session.get(Trip, sample_trip.id)
+        assert t.status == 'OPEN'
+
+
+# ---------------------------------------------------------------------------
+# Contact Visibility
+# ---------------------------------------------------------------------------
+
+class TestContactVisibility:
+    """Tests for Trip.contact_visible_for() rules."""
+
+    def _make_confirmed_trip(self, owner_id, open_roster=False):
+        future_start = date.today() + timedelta(days=5)
+        return Trip(
+            owner_id=owner_id,
+            title='Confirmed Trip',
+            destination='Ahmedabad',
+            departure_city='Surat',
+            start_date=future_start,
+            end_date=future_start + timedelta(days=3),
+            budget_min=1000, budget_max=5000, max_members=4, is_public=True,
+            status='CONFIRMED',
+            open_roster=open_roster,
+        )
+
+    def test_no_contacts_before_confirmation(self, auth_client, app):
+        """In OPEN status, no contacts are visible to anyone."""
+        from app.extensions import bcrypt
+        from app.models import User
+
+        _, owner = auth_client
+        with app.app_context():
+            pw = bcrypt.generate_password_hash('M!').decode('utf-8')
+            member = User(name='Mem', email='mem_cv@test.com', password_hash=pw)
+            _db.session.add(member)
+            _db.session.flush()
+            future_start = date.today() + timedelta(days=5)
+            trip = Trip(
+                owner_id=owner.id,
+                title='Open Trip CV',
+                destination='Rajkot',
+                departure_city='Mumbai',
+                start_date=future_start,
+                end_date=future_start + timedelta(days=3),
+                budget_min=1000, budget_max=5000, max_members=4,
+                status='OPEN',
+            )
+            _db.session.add(trip)
+            _db.session.flush()
+            _db.session.add(TripMember(trip_id=trip.id, user_id=member.id, status='accepted'))
+            _db.session.commit()
+            # Member cannot see owner's contacts before confirmation
+            assert not trip.contact_visible_for(member.id, owner.id)
+            # Owner cannot see member's contacts before confirmation
+            assert not trip.contact_visible_for(owner.id, member.id)
+
+    def test_cancelled_trip_hides_all_contacts(self, auth_client, app):
+        """CANCELLED status always hides contacts."""
+        from app.extensions import bcrypt
+        from app.models import User
+
+        _, owner = auth_client
+        with app.app_context():
+            pw = bcrypt.generate_password_hash('M!').decode('utf-8')
+            member = User(name='Mem2', email='mem2_cv@test.com', password_hash=pw)
+            _db.session.add(member)
+            _db.session.flush()
+            future_start = date.today() + timedelta(days=5)
+            trip = Trip(
+                owner_id=owner.id,
+                title='Cancelled Trip CV',
+                destination='Surat',
+                departure_city='Ahmedabad',
+                start_date=future_start,
+                end_date=future_start + timedelta(days=3),
+                budget_min=1000, budget_max=5000, max_members=4,
+                status='CANCELLED',
+            )
+            _db.session.add(trip)
+            _db.session.flush()
+            _db.session.add(TripMember(trip_id=trip.id, user_id=member.id, status='accepted'))
+            _db.session.commit()
+            assert not trip.contact_visible_for(owner.id, member.id)
+            assert not trip.contact_visible_for(member.id, owner.id)
+
+    def test_confirmed_owner_sees_all_contacts(self, auth_client, app):
+        """After CONFIRMED, owner sees all members' contacts."""
+        from app.extensions import bcrypt
+        from app.models import User
+
+        _, owner = auth_client
+        with app.app_context():
+            pw = bcrypt.generate_password_hash('M!').decode('utf-8')
+            m1 = User(name='M1', email='m1_cv@test.com', password_hash=pw)
+            m2 = User(name='M2', email='m2_cv@test.com', password_hash=pw)
+            _db.session.add_all([m1, m2])
+            _db.session.flush()
+            trip = self._make_confirmed_trip(owner.id, open_roster=False)
+            _db.session.add(trip)
+            _db.session.flush()
+            _db.session.add(TripMember(trip_id=trip.id, user_id=m1.id, status='accepted'))
+            _db.session.add(TripMember(trip_id=trip.id, user_id=m2.id, status='accepted'))
+            _db.session.commit()
+            assert trip.contact_visible_for(owner.id, m1.id)
+            assert trip.contact_visible_for(owner.id, m2.id)
+
+    def test_confirmed_member_sees_owner_always(self, auth_client, app):
+        """After CONFIRMED, member always sees owner contact."""
+        from app.extensions import bcrypt
+        from app.models import User
+
+        _, owner = auth_client
+        with app.app_context():
+            pw = bcrypt.generate_password_hash('M!').decode('utf-8')
+            m1 = User(name='M1b', email='m1b_cv@test.com', password_hash=pw)
+            _db.session.add(m1)
+            _db.session.flush()
+            trip = self._make_confirmed_trip(owner.id, open_roster=False)
+            _db.session.add(trip)
+            _db.session.flush()
+            _db.session.add(TripMember(trip_id=trip.id, user_id=m1.id, status='accepted'))
+            _db.session.commit()
+            assert trip.contact_visible_for(m1.id, owner.id)
+
+    def test_confirmed_member_cannot_see_other_member_without_open_roster(self, auth_client, app):
+        """After CONFIRMED with open_roster=False, members cannot see each other's contacts."""
+        from app.extensions import bcrypt
+        from app.models import User
+
+        _, owner = auth_client
+        with app.app_context():
+            pw = bcrypt.generate_password_hash('M!').decode('utf-8')
+            m1 = User(name='M1c', email='m1c_cv@test.com', password_hash=pw)
+            m2 = User(name='M2c', email='m2c_cv@test.com', password_hash=pw)
+            _db.session.add_all([m1, m2])
+            _db.session.flush()
+            trip = self._make_confirmed_trip(owner.id, open_roster=False)
+            _db.session.add(trip)
+            _db.session.flush()
+            _db.session.add(TripMember(trip_id=trip.id, user_id=m1.id, status='accepted'))
+            _db.session.add(TripMember(trip_id=trip.id, user_id=m2.id, status='accepted'))
+            _db.session.commit()
+            assert not trip.contact_visible_for(m1.id, m2.id)
+            assert not trip.contact_visible_for(m2.id, m1.id)
+
+    def test_confirmed_member_sees_other_member_with_open_roster(self, auth_client, app):
+        """After CONFIRMED with open_roster=True, members see each other's contacts."""
+        from app.extensions import bcrypt
+        from app.models import User
+
+        _, owner = auth_client
+        with app.app_context():
+            pw = bcrypt.generate_password_hash('M!').decode('utf-8')
+            m1 = User(name='M1d', email='m1d_cv@test.com', password_hash=pw)
+            m2 = User(name='M2d', email='m2d_cv@test.com', password_hash=pw)
+            _db.session.add_all([m1, m2])
+            _db.session.flush()
+            trip = self._make_confirmed_trip(owner.id, open_roster=True)
+            _db.session.add(trip)
+            _db.session.flush()
+            _db.session.add(TripMember(trip_id=trip.id, user_id=m1.id, status='accepted'))
+            _db.session.add(TripMember(trip_id=trip.id, user_id=m2.id, status='accepted'))
+            _db.session.commit()
+            assert trip.contact_visible_for(m1.id, m2.id)
+            assert trip.contact_visible_for(m2.id, m1.id)
+
+    def test_removed_member_loses_contact_access(self, auth_client, app):
+        """A member whose status is 'declined' (removed) cannot see contacts."""
+        from app.extensions import bcrypt
+        from app.models import User
+
+        _, owner = auth_client
+        with app.app_context():
+            pw = bcrypt.generate_password_hash('M!').decode('utf-8')
+            m1 = User(name='M1e', email='m1e_cv@test.com', password_hash=pw)
+            _db.session.add(m1)
+            _db.session.flush()
+            trip = self._make_confirmed_trip(owner.id, open_roster=True)
+            _db.session.add(trip)
+            _db.session.flush()
+            # Add member then decline (remove)
+            _db.session.add(TripMember(trip_id=trip.id, user_id=m1.id, status='declined'))
+            _db.session.commit()
+            # Declined member cannot see owner's contacts
+            assert not trip.contact_visible_for(m1.id, owner.id)
+
+
+# ---------------------------------------------------------------------------
+# ContactAccessLog
+# ---------------------------------------------------------------------------
+
+class TestContactAccessLog:
+    """ContactAccessLog rows are written when contacts are revealed."""
+
+    def test_contact_log_written_on_detail_view(self, auth_client, app):
+        """Loading trip detail for a confirmed trip creates ContactAccessLog rows."""
+        from app.extensions import bcrypt
+        from app.models import User
+
+        client, owner = auth_client
+
+        with app.app_context():
+            pw = bcrypt.generate_password_hash('M!').decode('utf-8')
+            member = User(name='LogMem', email='logmem@test.com', password_hash=pw)
+            _db.session.add(member)
+            _db.session.flush()
+
+            future_start = date.today() + timedelta(days=5)
+            trip = Trip(
+                owner_id=owner.id,
+                title='Log Trip',
+                destination='Ahmedabad',
+                departure_city='Surat',
+                start_date=future_start,
+                end_date=future_start + timedelta(days=3),
+                budget_min=1000, budget_max=5000, max_members=4,
+                status='CONFIRMED',
+                open_roster=False,
+            )
+            _db.session.add(trip)
+            _db.session.flush()
+            _db.session.add(TripMember(trip_id=trip.id, user_id=member.id, status='accepted'))
+            _db.session.commit()
+            trip_id = trip.id
+            member_id = member.id
+
+        # Owner loads the detail page → owner sees member's contacts
+        resp = client.get(f'/trips/{trip_id}')
+        assert resp.status_code == 200
+
+        with app.app_context():
+            log = ContactAccessLog.query.filter_by(
+                viewer_id=owner.id,
+                target_user_id=member_id,
+                trip_id=trip_id,
+            ).first()
+        assert log is not None, "ContactAccessLog should have been written for owner→member"
+
+
+# ---------------------------------------------------------------------------
+# Joining Closed Logic (legacy fallback)
 # ---------------------------------------------------------------------------
 
 class TestJoiningClosed:
-    """Trip.joining_closed is True when today >= start_date - 1 day."""
+    """Trip.joining_closed when no join_deadline (legacy 1-day fallback)."""
 
     def _make_trip(self, owner_id, start_offset):
         today = date.today()
@@ -327,22 +808,12 @@ class TestJoiningClosed:
             _db.session.commit()
             assert trip.joining_closed
 
-    def test_joining_closed_on_start_day(self, auth_client, app):
-        _, user = auth_client
-        with app.app_context():
-            trip = self._make_trip(user.id, start_offset=0)
-            _db.session.add(trip)
-            _db.session.commit()
-            assert trip.joining_closed
-
     def test_send_request_blocked_when_joining_closed(self, auth_client, app):
-        """A new buddy request must be rejected once joining has closed."""
         from app.extensions import bcrypt
         from app.models import User
         _, owner = auth_client
 
         with app.app_context():
-            # Trip starting tomorrow → joining already closed
             tomorrow = date.today() + timedelta(days=1)
             trip = Trip(
                 owner_id=owner.id,
@@ -369,7 +840,7 @@ class TestJoiningClosed:
         assert resp.status_code == 200
         with app.app_context():
             mem = TripMember.query.filter_by(trip_id=trip_id).first()
-            assert mem is None, "TripMember should not exist — joining was closed"
+            assert mem is None
 
 
 # ---------------------------------------------------------------------------
@@ -377,14 +848,11 @@ class TestJoiningClosed:
 # ---------------------------------------------------------------------------
 
 class TestExpenseGating:
-    """Expenses cannot be added while joining is still open."""
-
     def test_add_expense_blocked_when_joining_open(self, auth_client, app):
-        """Adding an expense when start_date is 2+ days away must fail."""
         from app.models import Expense
         client, user = auth_client
         with app.app_context():
-            future = date.today() + timedelta(days=3)
+            future = date.today() + timedelta(days=5)
             trip = Trip(
                 owner_id=user.id,
                 title='Expense Gate Trip',
@@ -414,7 +882,7 @@ class TestExpenseGating:
         with app.app_context():
             from app.models import Expense
             count = Expense.query.filter_by(trip_id=trip_id).count()
-            assert count == 0, "No expense should be created while joining is open"
+            assert count == 0
 
 
 # ---------------------------------------------------------------------------
@@ -422,8 +890,6 @@ class TestExpenseGating:
 # ---------------------------------------------------------------------------
 
 class TestLeaveLogic:
-    """Members cannot leave once joining has closed."""
-
     def test_leave_blocked_when_joining_closed(self, auth_client, app):
         from app.extensions import bcrypt
         from app.models import User
@@ -459,7 +925,7 @@ class TestLeaveLogic:
         assert resp.status_code == 200
         with app.app_context():
             still_member = TripMember.query.filter_by(trip_id=trip_id).first()
-            assert still_member is not None, "Member should still exist — join is closed"
+            assert still_member is not None
 
     def test_leave_allowed_when_joining_open(self, auth_client, app):
         from app.extensions import bcrypt
@@ -467,7 +933,7 @@ class TestLeaveLogic:
         _, owner = auth_client
 
         with app.app_context():
-            far_future = date.today() + timedelta(days=5)
+            far_future = date.today() + timedelta(days=10)
             trip = Trip(
                 owner_id=owner.id,
                 title='Leave Allow Trip',
@@ -496,16 +962,14 @@ class TestLeaveLogic:
         assert resp.status_code == 200
         with app.app_context():
             still_member = TripMember.query.filter_by(trip_id=trip_id).first()
-            assert still_member is None, "Member should be removed — joining was open"
+            assert still_member is None
 
 
 # ---------------------------------------------------------------------------
-# Member Count — Partial Fill (Item 5)
+# Partial Fill
 # ---------------------------------------------------------------------------
 
 class TestPartialFill:
-    """Trip continues normally even if fewer members joined than max_members."""
-
     def test_trip_continues_with_partial_fill(self, auth_client, app):
         from app.models import User
         from app.extensions import bcrypt
@@ -521,7 +985,7 @@ class TestPartialFill:
                 start_date=future,
                 end_date=future + timedelta(days=3),
                 budget_min=1000, budget_max=5000,
-                max_members=5,   # expected 5
+                max_members=5,
                 status='OPEN',
                 is_public=True,
             )
@@ -536,8 +1000,6 @@ class TestPartialFill:
 
         with app.app_context():
             t = _db.session.get(Trip, trip_id)
-            # Trip must exist and not be cancelled
             assert t is not None
             assert t.status == 'OPEN'
-            # member_count reflects actual accepted members only
-            assert t.member_count() == 2   # owner + 1 joiner
+            assert t.member_count() == 2

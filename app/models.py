@@ -304,8 +304,10 @@ class Trip(db.Model):
         return self.is_open() and not self.joining_closed and not self.is_full()
 
     def can_leave(self):
-        """Members can leave while trip is OPEN and join_deadline hasn't passed."""
-        return self.is_open() and not self.join_deadline_passed
+        """Members can leave while trip is OPEN and joining has not closed.
+        Joining closes when join_deadline passes (if set) or 1 day before start (legacy).
+        """
+        return self.is_open() and not self.joining_closed
 
     def can_cancel(self):
         today = _date.today()
