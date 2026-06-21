@@ -1,6 +1,6 @@
 # TravelBuddy 🌍
 
-[![CI](https://github.com/<YOUR_GITHUB_USERNAME>/travelbuddy/actions/workflows/ci.yml/badge.svg)](https://github.com/<YOUR_GITHUB_USERNAME>/travelbuddy/actions/workflows/ci.yml)
+[![CI](https://github.com/palakptl04/travelbuddy/actions/workflows/ci.yml/badge.svg)](https://github.com/palakptl04/travelbuddy/actions/workflows/ci.yml)
 
 A Flask-based travel planning and expense-splitting web app. Find trip buddies, split costs automatically with a Splitwise-style algorithm, and track settlements across all your trips.
 
