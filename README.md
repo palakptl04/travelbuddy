@@ -255,38 +255,7 @@ travelbuddy/
 
 ---
 
-## CI / CD
 
-GitHub Actions runs two jobs on every push and pull request to `main` and `develop`:
-
-1. **Lint** (`ruff check .`) — fails fast on style or import errors.
-2. **Test + Coverage** — runs pytest; fails if coverage drops below 74%.
-
-Coverage XML and HTML artifacts are uploaded after every run (even on failure).
-
-Replace `<YOUR_GITHUB_USERNAME>` in the badge below with your actual GitHub username:
-
-```markdown
-[![CI](https://github.com/<YOUR_GITHUB_USERNAME>/travelbuddy/actions/workflows/ci.yml/badge.svg)](https://github.com/<YOUR_GITHUB_USERNAME>/travelbuddy/actions/workflows/ci.yml)
-```
-
----
-
-## Performance Improvements
-
-| Area | Change | Impact |
-|---|---|---|
-| `get_active_trips()` / `get_upcoming_trips()` | JOIN query instead of IDs→re-query pattern | −1 query per call |
-| `get_total_balance()` | Batch trip load with `.filter(Trip.id.in_(...))` | −N queries (one per trip) |
-| `_count_unique_buddies()` | Single set-union query, no per-trip lookups | −N queries |
-| `load_user()` | `db.session.get()` instead of `Query.get()` | Uses identity map cache |
-| `Trip.__table_args__` | Composite index on `(owner_id, status)` | Faster dashboard queries |
-| `TripMember.__table_args__` | Composite index on `(user_id, status)` + `(trip_id, status)` | Faster membership checks |
-| `Expense.__table_args__` | Composite index on `(trip_id, paid_by_id)` | Faster expense filtering |
-| `Settlement.__table_args__` | Composite index on `(trip_id, payer_id)` | Faster settlement lookup |
-| `TripMember` | Unique constraint on `(trip_id, user_id)` | Prevents duplicate memberships at DB level |
-
----
 
 ## License
 
