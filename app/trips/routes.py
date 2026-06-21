@@ -7,7 +7,7 @@ from app.trips import trips
 from app.trips.forms import TripForm
 from app.expenses.forms import ExpenseForm
 from app.models import Trip, TripMember, Expense, User, Settlement, ContactAccessLog
-from app.cities import GUJARAT_CITIES, NEARBY_CITIES
+from app.cities import GUJARAT_CITIES, NEARBY_CITIES, DESTINATION_CHOICES
 from app.extensions import db
 
 BROWSE_PER_PAGE = 10
@@ -98,7 +98,7 @@ def index():
         accepted_ids=accepted_ids,
         destination=destination,
         budget=budget,
-        city_choices=GUJARAT_CITIES + NEARBY_CITIES,
+        destination_choices=DESTINATION_CHOICES,
         today=date.today()
     )
 
@@ -215,39 +215,63 @@ def edit(trip_id):
         flash('Not authorised to edit this trip.', 'error')
         return redirect(url_for('trips.detail', trip_id=trip.id))
 
+    # ── Trip lock: once a member has been accepted, only max_members can change ──
+    locked = trip.has_accepted_members
+
     form = TripForm(obj=trip)
 
     # Pre-populate join_deadline from datetime → date for the DateField
     if request.method == 'GET' and trip.join_deadline:
         form.join_deadline.data = trip.join_deadline.date()
 
-    if form.validate_on_submit():
-        trip.title = form.title.data.strip()
-        trip.destination = form.destination.data.strip()
-        trip.departure_city = form.departure_city.data.strip()
-        trip.description = form.description.data.strip() if form.description.data else ''
-        trip.start_date = form.start_date.data
-        trip.end_date = form.end_date.data
-        trip.budget_min = form.budget_min.data
-        trip.budget_max = form.budget_max.data
-        trip.max_members = form.max_members.data
-        trip.open_roster = bool(form.open_roster.data)
-
-        # Only update join_deadline if trip is still OPEN
-        if trip.is_open():
-            if form.join_deadline.data:
-                trip.join_deadline = datetime.combine(
-                    form.join_deadline.data,
-                    datetime.max.time()
-                ).replace(tzinfo=None)
+    if request.method == 'POST':
+        if locked:
+            # ── Locked path: only allow max_members to increase ──────────────
+            new_max = request.form.get('max_members', type=int)
+            if new_max is None:
+                flash('Invalid value for Max Members.', 'error')
+            elif new_max < trip.max_members:
+                flash(
+                    'Cannot reduce Max Members once a buddy has joined. '
+                    'You may only increase it.',
+                    'error'
+                )
+            elif new_max > 50:
+                flash('Max Members cannot exceed 50.', 'error')
             else:
-                trip.join_deadline = None
+                trip.max_members = new_max
+                db.session.commit()
+                flash('Group size updated successfully.', 'success')
+                return redirect(url_for('trips.detail', trip_id=trip.id))
+        else:
+            # ── Unlocked path: full edit ──────────────────────────────────────
+            if form.validate_on_submit():
+                trip.title = form.title.data.strip()
+                trip.destination = form.destination.data.strip()
+                trip.departure_city = form.departure_city.data.strip()
+                trip.description = form.description.data.strip() if form.description.data else ''
+                trip.start_date = form.start_date.data
+                trip.end_date = form.end_date.data
+                trip.budget_min = form.budget_min.data
+                trip.budget_max = form.budget_max.data
+                trip.max_members = form.max_members.data
+                trip.open_roster = bool(form.open_roster.data)
 
-        db.session.commit()
-        flash('Trip updated successfully.', 'success')
-        return redirect(url_for('trips.detail', trip_id=trip.id))
+                # Only update join_deadline if trip is still OPEN
+                if trip.is_open():
+                    if form.join_deadline.data:
+                        trip.join_deadline = datetime.combine(
+                            form.join_deadline.data,
+                            datetime.max.time()
+                        ).replace(tzinfo=None)
+                    else:
+                        trip.join_deadline = None
 
-    return render_template('trips/edit.html', form=form, trip=trip)
+                db.session.commit()
+                flash('Trip updated successfully.', 'success')
+                return redirect(url_for('trips.detail', trip_id=trip.id))
+
+    return render_template('trips/edit.html', form=form, trip=trip, locked=locked)
 
 
 @trips.route('/trips/<int:trip_id>/cancel', methods=['POST'])

@@ -560,6 +560,29 @@ def update_trip(trip_id: int):
     if data['end_date'] < data['start_date']:
         abort(400, description='end_date must be on or after start_date')
 
+    # ── Trip lock: reject changes to core fields once a member has joined ──
+    LOCKED_FIELDS = {
+        'title', 'destination', 'departure_city',
+        'start_date', 'end_date', 'budget_min', 'budget_max',
+    }
+    if trip.has_accepted_members:
+        # Check if caller is attempting to change any locked field
+        attempted = [
+            f for f in LOCKED_FIELDS
+            if f in data and getattr(trip, f) != data[f]
+        ]
+        if attempted:
+            abort(423, description=(
+                'This trip is locked because at least one member has joined. '
+                f'Cannot change: {attempted}. '
+                'Only max_members (upward) can be modified.'
+            ))
+        # Also block max_members reduction
+        if 'max_members' in data and data['max_members'] < trip.max_members:
+            abort(400, description=(
+                'Cannot reduce max_members once a member has joined.'
+            ))
+
     trip.title          = data['title']
     trip.destination    = data['destination']
     trip.departure_city = data.get('departure_city', '')
@@ -647,6 +670,27 @@ def patch_trip(trip_id: int):
         data = TripUpdateSchema(partial=True).load(body)
     except ValidationError as exc:
         abort(400, description=str(exc.messages))
+
+    # ── Trip lock: block changes to core fields once a member has joined ───
+    LOCKED_FIELDS = {
+        'title', 'destination', 'departure_city',
+        'start_date', 'end_date', 'budget_min', 'budget_max',
+    }
+    if trip.has_accepted_members:
+        attempted = [
+            f for f in LOCKED_FIELDS
+            if f in data and getattr(trip, f) != data[f]
+        ]
+        if attempted:
+            abort(423, description=(
+                'This trip is locked because at least one member has joined. '
+                f'Cannot change: {attempted}. '
+                'Only max_members (upward) can be modified.'
+            ))
+        if 'max_members' in data and data['max_members'] < trip.max_members:
+            abort(400, description=(
+                'Cannot reduce max_members once a member has joined.'
+            ))
 
     if 'title'          in data: trip.title          = data['title']
     if 'destination'    in data: trip.destination    = data['destination']
@@ -1151,3 +1195,9 @@ def api_not_found(e):
 @api_v1.errorhandler(405)
 def api_method_not_allowed(e):
     return jsonify({'error': 'Method not allowed', 'status': 405}), 405
+
+
+@api_v1.errorhandler(423)
+def api_locked(e):
+    desc = getattr(e, 'description', str(e))
+    return jsonify({'error': desc, 'status': 423}), 423

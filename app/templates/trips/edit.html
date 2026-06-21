@@ -66,6 +66,33 @@
     margin-bottom: 10px;
   }
 
+  /* Member-joined lock banner */
+  .member-lock-banner {
+    display: flex; gap: 14px; align-items: flex-start;
+    background: #fffbeb; border: 1.5px solid #f59e0b; border-radius: 14px;
+    padding: 16px 20px; margin-bottom: 24px;
+  }
+  .member-lock-banner .lock-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
+  .member-lock-banner .lock-title {
+    font-size: 14px; font-weight: 800; color: #92400e; margin-bottom: 4px;
+  }
+  .member-lock-banner .lock-body {
+    font-size: 13px; color: #78350f; line-height: 1.6;
+  }
+  .member-lock-banner .lock-list {
+    margin: 6px 0 0 0; padding-left: 16px; font-size: 12px; color: #92400e;
+  }
+  .member-lock-banner .lock-list li { margin-bottom: 2px; }
+
+  /* Read-only locked fields */
+  .readonly-field {
+    width: 100%; padding: 11px 14px; border: 1.5px solid #e5e7eb; border-radius: 10px;
+    font-size: 14px; font-family: inherit; color: #6b7280; background: #f9fafb;
+    display: block; box-sizing: border-box;
+  }
+  .locked-label { display: flex; align-items: center; gap: 6px; }
+  .locked-label .lock-icon-sm { font-size: 11px; color: #9ca3af; }
+
   .edit-actions {
     padding: 20px 32px; display: flex; align-items: center; gap: 12px;
     justify-content: flex-end; background: var(--bg); border-top: 1px solid var(--border);
@@ -99,10 +126,102 @@
       <a href="{{ url_for('trips.detail', trip_id=trip.id) }}" class="btn-back">← Back to Trip</a>
     </div>
 
+    {# ── Member-joined lock banner ──────────────────────────────────────── #}
+    {% if locked %}
+    <div class="member-lock-banner">
+      <div class="lock-icon">🔒</div>
+      <div>
+        <div class="lock-title">Trip Details Locked</div>
+        <div class="lock-body">
+          A buddy has already joined this trip, so core details are now frozen
+          to ensure fairness for all members. The following fields cannot be changed:
+          <ul class="lock-list">
+            <li>Departure city &amp; Destination</li>
+            <li>Start &amp; End dates</li>
+            <li>Budget range</li>
+            <li>Title &amp; Description</li>
+          </ul>
+          You can still <strong>increase the group size</strong> or <strong>cancel the trip</strong>.
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
     <form method="POST" action="{{ url_for('trips.edit', trip_id=trip.id) }}" novalidate>
       {{ form.hidden_tag() }}
 
       <div class="edit-card">
+
+        {# ══════════════════════════════════════════════════════════════════ #}
+        {# LOCKED VIEW — show read-only fields, only max_members is editable #}
+        {# ══════════════════════════════════════════════════════════════════ #}
+        {% if locked %}
+
+        <div class="edit-section">
+          <div class="edit-section-title">🗺️ Trip Details <span style="font-size:11px;font-weight:600;color:#9ca3af;margin-left:4px;">(locked)</span></div>
+
+          <div class="form-group">
+            <label class="locked-label">Trip Title <span class="lock-icon-sm">🔒</span></label>
+            <span class="readonly-field">{{ trip.title }}</span>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="locked-label">Departure City <span class="lock-icon-sm">🔒</span></label>
+              <span class="readonly-field">{{ trip.departure_city or '—' }}</span>
+            </div>
+            <div class="form-group">
+              <label class="locked-label">Destination <span class="lock-icon-sm">🔒</span></label>
+              <span class="readonly-field">{{ trip.destination }}</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="locked-label">Description <span class="lock-icon-sm">🔒</span></label>
+            <span class="readonly-field" style="min-height:70px;display:block;white-space:pre-wrap;">{{ trip.description or '—' }}</span>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="locked-label">Start Date <span class="lock-icon-sm">🔒</span></label>
+              <span class="readonly-field">{{ trip.start_date.strftime('%B %d, %Y') }}</span>
+            </div>
+            <div class="form-group">
+              <label class="locked-label">End Date <span class="lock-icon-sm">🔒</span></label>
+              <span class="readonly-field">{{ trip.end_date.strftime('%B %d, %Y') }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="edit-section">
+          <div class="edit-section-title">💰 Budget &amp; Group Size</div>
+          <div class="form-row" style="margin-bottom:18px;">
+            <div class="form-group">
+              <label class="locked-label">Min Budget (₹) <span class="lock-icon-sm">🔒</span></label>
+              <span class="readonly-field">₹{{ "%.0f"|format(trip.budget_min) }}</span>
+            </div>
+            <div class="form-group">
+              <label class="locked-label">Max Budget (₹) <span class="lock-icon-sm">🔒</span></label>
+              <span class="readonly-field">₹{{ "%.0f"|format(trip.budget_max) }}</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="max_members_locked">Max Members</label>
+            <input type="number" id="max_members_locked" name="max_members"
+                   value="{{ trip.max_members }}" min="{{ trip.max_members }}" max="50"
+                   class="input-error" style="border-color:var(--border);">
+            <div class="field-hint">
+              ℹ️ Current group size is <strong>{{ trip.member_count() }}/{{ trip.max_members }}</strong>.
+              You may only increase this number (not reduce it) while members are on board.
+            </div>
+          </div>
+        </div>
+
+        {# ══════════════════════════════════════════════════════════════════ #}
+        {# UNLOCKED VIEW — full edit form                                    #}
+        {# ══════════════════════════════════════════════════════════════════ #}
+        {% else %}
+
         <div class="edit-section">
           <div class="edit-section-title">🗺️ Trip Details</div>
 
@@ -195,9 +314,15 @@
           </div>
         </div>
 
+        {% endif %}{# end unlocked #}
+
         <div class="edit-actions">
           <a href="{{ url_for('trips.detail', trip_id=trip.id) }}" class="btn-cancel">Cancel</a>
-          {{ form.submit(class="btn-save") }}
+          {% if locked %}
+            <button type="submit" class="btn-save">Update Group Size</button>
+          {% else %}
+            {{ form.submit(class="btn-save") }}
+          {% endif %}
         </div>
       </div>
     </form>

@@ -278,6 +278,14 @@ class Trip(db.Model):
     def member_count(self):
         return self.members.filter_by(status='accepted').count() + 1  # +1 for owner
 
+    @property
+    def has_accepted_members(self) -> bool:
+        """True once at least one non-owner member has been accepted.
+        Used as the single source-of-truth for the trip-lock check:
+        once this is True, core trip fields (destination, dates, budget,
+        departure_city) become immutable."""
+        return self.members.filter_by(status='accepted').count() > 0
+
     def accepted_members(self):
         return TripMember.query.filter_by(trip_id=self.id, status='accepted').all()
 

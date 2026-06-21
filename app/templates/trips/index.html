@@ -230,8 +230,8 @@
           <label>Destination</label>
           <select name="destination">
             <option value="">Any</option>
-            {% for city in city_choices %}
-              <option value="{{ city }}" {% if destination == city %}selected{% endif %}>{{ city }}</option>
+            {% for dest, label in destination_choices %}
+              <option value="{{ dest }}" {% if destination == dest %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
           </select>
         </div>

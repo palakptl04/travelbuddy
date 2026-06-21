@@ -4,7 +4,7 @@ from wtforms import (StringField, TextAreaField, DateField, FloatField,
                      DateTimeLocalField)
 from wtforms.validators import DataRequired, Length, NumberRange, ValidationError, Optional
 from datetime import date, datetime, timedelta
-from app.cities import CITY_CHOICES
+from app.cities import DEPARTURE_CITY_CHOICES, DESTINATION_CHOICES
 
 
 class TripForm(FlaskForm):
@@ -12,10 +12,10 @@ class TripForm(FlaskForm):
         DataRequired(message='Title is required.'),
         Length(min=3, max=150, message='Title must be between 3 and 150 characters.')
     ])
-    departure_city = SelectField('Departure City', choices=CITY_CHOICES, validators=[
+    departure_city = SelectField('Departure City', choices=DEPARTURE_CITY_CHOICES, validators=[
         DataRequired(message='Departure city is required.')
     ])
-    destination = SelectField('Destination', choices=CITY_CHOICES, validators=[
+    destination = SelectField('Destination', choices=DESTINATION_CHOICES, validators=[
         DataRequired(message='Destination is required.')
     ])
     description = TextAreaField('Description', validators=[Length(max=500)])
