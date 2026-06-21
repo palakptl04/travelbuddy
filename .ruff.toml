@@ -1,0 +1,26 @@
+line-length = 100
+target-version = "py312"
+
+# Don't lint scratch scripts, migration auto-gen files, or seed data
+exclude = [
+    "debug_test.py",
+    "cleanup_test_data.py",
+    "seed.py",
+    "migrations/",
+]
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes (unused imports, undefined names, …)
+    "I",   # isort
+]
+ignore = [
+    "E501",  # line too long — template strings legitimately exceed limit
+    "E701",  # multiple statements on one line — used intentionally in routes.py for aligned field updates
+]
+
+[lint.per-file-ignores]
+# Test files: F811 (redefinition) is common with fixtures
+"tests/*" = ["F811"]

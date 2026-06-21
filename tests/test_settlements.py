@@ -1,10 +1,10 @@
 """Tests for the Splitwise-style settlement algorithm in Trip.calculate_settlements()."""
 
-import pytest
 from datetime import date, timedelta
-from app.models import Trip, User, Expense, TripMember
-from app.extensions import db as _db, bcrypt
 
+from app.extensions import bcrypt
+from app.extensions import db as _db
+from app.models import Expense, Trip, TripMember, User
 
 # ---------------------------------------------------------------------------
 # Helpers — call within an app_context
@@ -188,9 +188,8 @@ class TestPartialSettlementBug:
     """
 
     def test_partial_settlement_not_all_settled(self, app):
+
         from app.models import Settlement
-        from app.expenses.routes import my_expenses
-        from datetime import timezone
 
         with app.app_context():
             palak = _make_user('Palak', 'palak@bug.com')

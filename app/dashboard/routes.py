@@ -1,10 +1,11 @@
-from flask import render_template, redirect, url_for, flash, request
-from flask_login import login_required, current_user
-from app.dashboard import dashboard
-from app.models import Trip, TripMember, Expense, User
-from app.extensions import db
 from datetime import date
-from sqlalchemy import func
+
+from flask import flash, redirect, render_template, url_for
+from flask_login import current_user, login_required
+
+from app.dashboard import dashboard
+from app.extensions import db
+from app.models import Expense, Trip, TripMember
 
 
 @dashboard.route('/dashboard')

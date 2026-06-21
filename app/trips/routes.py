@@ -1,14 +1,14 @@
-from flask import render_template, redirect, url_for, flash, request
-from flask_login import login_required, current_user
-from sqlalchemy import or_
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 
+from flask import flash, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
+
+from app.cities import DESTINATION_CHOICES
+from app.expenses.forms import ExpenseForm
+from app.extensions import db
+from app.models import ContactAccessLog, Expense, Trip, TripMember
 from app.trips import trips
 from app.trips.forms import TripForm
-from app.expenses.forms import ExpenseForm
-from app.models import Trip, TripMember, Expense, User, Settlement, ContactAccessLog
-from app.cities import GUJARAT_CITIES, NEARBY_CITIES, DESTINATION_CHOICES
-from app.extensions import db
 
 BROWSE_PER_PAGE = 10
 

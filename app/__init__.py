@@ -1,6 +1,7 @@
 from flask import Flask, request
+
+from app.extensions import bcrypt, csrf, db, login_manager, migrate, swagger
 from config import Config
-from app.extensions import db, bcrypt, login_manager, csrf, migrate, swagger
 
 
 def create_app(config_object=None):
@@ -21,13 +22,13 @@ def create_app(config_object=None):
     swagger.init_app(app)
 
 
+    from app.api import api_v1 as api_bp
     from app.auth import auth as auth_bp
-    from app.main import main as main_bp
     from app.dashboard import dashboard as dashboard_bp
+    from app.expenses import expenses as expenses_bp
+    from app.main import main as main_bp
     from app.profile import profile as profile_bp
     from app.trips import trips as trips_bp
-    from app.expenses import expenses as expenses_bp
-    from app.api import api_v1 as api_bp
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(main_bp)

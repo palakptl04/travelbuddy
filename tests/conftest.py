@@ -27,13 +27,13 @@ its own isolated app+request context and Flask-Login reloads current_user from
 the session cookie on every request.
 """
 
-import pytest
 from datetime import date, timedelta
+
+import pytest
 
 from app import create_app
 from app.extensions import db as _db
 from config import TestingConfig
-
 
 # ---------------------------------------------------------------------------
 # Session-scoped: app + schema creation

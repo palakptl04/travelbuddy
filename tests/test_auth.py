@@ -1,9 +1,7 @@
 """Tests for auth routes: register, login, logout."""
 
-import pytest
-from app.models import User
 from app.extensions import bcrypt
-
+from app.models import User
 
 # ---------------------------------------------------------------------------
 # Register

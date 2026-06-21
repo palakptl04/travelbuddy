@@ -1,8 +1,9 @@
-from flask import render_template, redirect, url_for, flash, request
-from flask_login import login_required, current_user
-from app.profile import profile
-from app.profile.forms import ProfileForm, INTERESTS
+from flask import flash, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
+
 from app.extensions import db
+from app.profile import profile
+from app.profile.forms import INTERESTS, ProfileForm
 
 
 @profile.route('/profile')

@@ -1,9 +1,9 @@
-from flask_sqlalchemy import SQLAlchemy
+from flasgger import Swagger
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager
-from flask_wtf import CSRFProtect
 from flask_migrate import Migrate
-from flasgger import Swagger
+from flask_sqlalchemy import SQLAlchemy
+from flask_wtf import CSRFProtect
 
 db = SQLAlchemy()
 bcrypt = Bcrypt()

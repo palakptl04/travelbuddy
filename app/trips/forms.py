@@ -1,9 +1,18 @@
+from datetime import date, timedelta
+
 from flask_wtf import FlaskForm
-from wtforms import (StringField, TextAreaField, DateField, FloatField,
-                     IntegerField, SubmitField, SelectField, BooleanField,
-                     DateTimeLocalField)
-from wtforms.validators import DataRequired, Length, NumberRange, ValidationError, Optional
-from datetime import date, datetime, timedelta
+from wtforms import (
+    BooleanField,
+    DateField,
+    FloatField,
+    IntegerField,
+    SelectField,
+    StringField,
+    SubmitField,
+    TextAreaField,
+)
+from wtforms.validators import DataRequired, Length, NumberRange, Optional, ValidationError
+
 from app.cities import DEPARTURE_CITY_CHOICES, DESTINATION_CHOICES
 
 

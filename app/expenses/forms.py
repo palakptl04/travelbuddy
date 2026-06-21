@@ -1,7 +1,8 @@
-from flask_wtf import FlaskForm
-from wtforms import StringField, FloatField, SelectField, SubmitField, DateField, HiddenField
-from wtforms.validators import DataRequired, Length, NumberRange, Optional
 from datetime import date
+
+from flask_wtf import FlaskForm
+from wtforms import DateField, FloatField, SelectField, StringField, SubmitField
+from wtforms.validators import DataRequired, Length, NumberRange, Optional
 
 EXPENSE_CATEGORIES = [
     ('food',          'Food'),

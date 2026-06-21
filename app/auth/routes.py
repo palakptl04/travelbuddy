@@ -1,8 +1,9 @@
-from flask import render_template, redirect, url_for, flash, request, make_response
-from flask_login import login_user, logout_user, current_user
+from flask import flash, make_response, redirect, render_template, request, url_for
+from flask_login import current_user, login_user, logout_user
+
 from app.auth import auth
-from app.auth.forms import RegisterForm, LoginForm
-from app.extensions import db, bcrypt
+from app.auth.forms import LoginForm, RegisterForm
+from app.extensions import bcrypt, db
 from app.models import User
 
 

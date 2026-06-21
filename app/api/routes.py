@@ -10,16 +10,15 @@ Authentication (choose one header per request):
   - Session cookie (same as web UI — for browser clients)
 """
 
-from datetime import date as _date, datetime, timezone
+from datetime import date as _date
 
-from flask import jsonify, request, abort
-from marshmallow import Schema, fields, validate, ValidationError, EXCLUDE
+from flask import abort, jsonify, request
+from marshmallow import EXCLUDE, Schema, ValidationError, fields, validate
 
 from app.api import api_v1
-from app.api.auth_utils import require_api_auth, generate_token
-from app.models import Trip, TripMember, Expense, Settlement, User
-from app.extensions import db, bcrypt
-
+from app.api.auth_utils import generate_token, require_api_auth
+from app.extensions import bcrypt, db
+from app.models import Expense, Trip, TripMember, User
 
 # ===========================================================================
 # Marshmallow schemas  (request validation)

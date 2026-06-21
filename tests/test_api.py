@@ -12,12 +12,10 @@ Covers:
 """
 
 import json
-import pytest
 from datetime import date, timedelta
 
-from app.models import Trip, Expense, TripMember, User
 from app.extensions import db as _db
-
+from app.models import Expense, Trip, User
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -661,7 +659,7 @@ class TestBfcacheCacheControl:
         """API responses should NOT have Cache-Control: no-store injected by web hook."""
         client, _ = auth_client
         resp = client.get('/api/v1/trips')
-        cc = resp.headers.get('Cache-Control', '')
         # API responses may have their own cache headers but NOT the web no-store
         # (the after_request hook skips /api/ paths)
         assert resp.status_code == 200
+        assert 'no-store' not in resp.headers.get('Cache-Control', '')

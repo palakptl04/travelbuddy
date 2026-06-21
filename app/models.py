@@ -1,9 +1,10 @@
 import secrets
+from datetime import date as _date
+from datetime import datetime, timedelta, timezone
+
+from flask_login import UserMixin
 
 from app.extensions import db, login_manager
-from flask_login import UserMixin
-from datetime import datetime, timezone, date as _date, timedelta
-from sqlalchemy import select
 
 
 @login_manager.user_loader
@@ -15,12 +16,7 @@ def load_user(user_id):
 # Extensible contact-encryption hook
 # ---------------------------------------------------------------------------
 # Currently stores data as plain text.  To enable encryption at rest, replace
-# the two methods below with Fernet/KMS implementations — no model changes needed.
-
-def _encrypt_contact(value: str) -> str:
-    """Encrypt a contact field before storing. Override for real encryption."""
-    return value or ''
-
+# the method below with a Fernet/KMS implementation — no model changes needed.
 
 def _decrypt_contact(value: str) -> str:
     """Decrypt a contact field after loading. Override for real encryption."""
@@ -67,9 +63,6 @@ class User(db.Model, UserMixin):
     def get_email(self) -> str:
         """Return decrypted email (email is also the login key — kept plain)."""
         return _decrypt_contact(self.email)
-
-    def set_phone(self, value: str):
-        self.phone = _encrypt_contact(value)
 
     def generate_api_key(self) -> str:
         """Generate (or rotate) this user's API key. Caller must commit."""

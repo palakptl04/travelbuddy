@@ -1,5 +1,7 @@
 # TravelBuddy 🌍
 
+[![CI](https://github.com/<YOUR_GITHUB_USERNAME>/travelbuddy/actions/workflows/ci.yml/badge.svg)](https://github.com/<YOUR_GITHUB_USERNAME>/travelbuddy/actions/workflows/ci.yml)
+
 A Flask-based travel planning and expense-splitting web app. Find trip buddies, split costs automatically with a Splitwise-style algorithm, and track settlements across all your trips.
 
 ---
@@ -255,11 +257,17 @@ travelbuddy/
 
 ## CI / CD
 
-GitHub Actions runs pytest on every push and pull request to `main` and `develop`.
+GitHub Actions runs two jobs on every push and pull request to `main` and `develop`:
 
-Badge (add to your repo after pushing):
+1. **Lint** (`ruff check .`) — fails fast on style or import errors.
+2. **Test + Coverage** — runs pytest; fails if coverage drops below 74%.
+
+Coverage XML and HTML artifacts are uploaded after every run (even on failure).
+
+Replace `<YOUR_GITHUB_USERNAME>` in the badge below with your actual GitHub username:
+
 ```markdown
-![CI](https://github.com/<your-username>/travelbuddy/actions/workflows/ci.yml/badge.svg)
+[![CI](https://github.com/<YOUR_GITHUB_USERNAME>/travelbuddy/actions/workflows/ci.yml/badge.svg)](https://github.com/<YOUR_GITHUB_USERNAME>/travelbuddy/actions/workflows/ci.yml)
 ```
 
 ---

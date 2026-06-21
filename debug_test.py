@@ -1,11 +1,14 @@
-import sys, io
+import io
+import sys
+
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 sys.path.insert(0, '.')
-from app import create_app
-from config import TestingConfig
-from app.extensions import db, bcrypt, login_manager
-from app.models import User, Trip, TripMember
 from datetime import date, timedelta
+
+from app import create_app
+from app.extensions import bcrypt, db, login_manager
+from app.models import Trip, TripMember, User
+from config import TestingConfig
 
 app = create_app(TestingConfig)
 

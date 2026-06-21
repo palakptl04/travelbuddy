@@ -23,12 +23,11 @@ from __future__ import annotations
 import datetime
 
 import jwt
-from flask import request, abort, current_app, g
+from flask import abort, current_app, g, request
 from flask_login import current_user
 
-from app.models import User
 from app.extensions import db
-
+from app.models import User
 
 # ---------------------------------------------------------------------------
 # Token helpers

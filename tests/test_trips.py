@@ -1,10 +1,9 @@
 """Tests for trip CRUD operations and membership workflows."""
 
-import pytest
-from datetime import date, timedelta, datetime
-from app.models import Trip, TripMember, ContactAccessLog
-from app.extensions import db as _db
+from datetime import date, datetime, timedelta
 
+from app.extensions import db as _db
+from app.models import ContactAccessLog, Trip, TripMember
 
 # ---------------------------------------------------------------------------
 # Helpers — use cities that exist in CITY_CHOICES (Gujarat + Nearby)
@@ -118,8 +117,8 @@ class TestReadTrip:
         assert resp.status_code == 404
 
     def test_trip_detail_guest_redirects_to_login(self, client, app):
-        from app.models import User, Trip
         from app.extensions import bcrypt
+        from app.models import Trip, User
 
         with app.app_context():
             pw = bcrypt.generate_password_hash('pass').decode('utf-8')
@@ -971,8 +970,8 @@ class TestLeaveLogic:
 
 class TestPartialFill:
     def test_trip_continues_with_partial_fill(self, auth_client, app):
-        from app.models import User
         from app.extensions import bcrypt
+        from app.models import User
         _, owner = auth_client
 
         with app.app_context():

@@ -1,11 +1,13 @@
-from flask import render_template, redirect, url_for, flash, request
-from flask_login import login_required, current_user
-from datetime import date as date_today, datetime, timezone
+from datetime import date as date_today
+from datetime import datetime, timezone
+
+from flask import flash, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
 
 from app.expenses import expenses
 from app.expenses.forms import ExpenseForm
-from app.models import Trip, TripMember, Expense, Settlement
 from app.extensions import db
+from app.models import Expense, Settlement, Trip, TripMember
 
 
 def _get_membership(trip):

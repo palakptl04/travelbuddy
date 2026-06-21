@@ -12,11 +12,12 @@ Pass --commit to actually delete the rows.
 """
 
 import sys
+
 sys.path.insert(0, '.')
 
 from app import create_app
 from app.extensions import db
-from app.models import Trip, TripMember, Expense, Settlement
+from app.models import Expense, Settlement, Trip, TripMember
 
 app = create_app()
 

@@ -3,10 +3,11 @@ Run once to populate the database with test data.
 Usage: python seed.py
 """
 
-from app import create_app
-from app.extensions import db, bcrypt
-from app.models import User, Trip, TripMember, Expense
 from datetime import date, timedelta
+
+from app import create_app
+from app.extensions import bcrypt, db
+from app.models import Expense, Trip, TripMember, User
 
 app = create_app()
 
