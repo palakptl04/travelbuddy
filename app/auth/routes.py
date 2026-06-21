@@ -1,4 +1,4 @@
-from flask import render_template, redirect, url_for, flash, request
+from flask import render_template, redirect, url_for, flash, request, make_response
 from flask_login import login_user, logout_user, current_user
 from app.auth import auth
 from app.auth.forms import RegisterForm, LoginForm
@@ -49,4 +49,11 @@ def login():
 def logout():
     logout_user()
     flash('You have been logged out.', 'success')
-    return redirect(url_for('main.home'))
+    # Redirect to home and ensure the redirect response itself is not cached.
+    # This prevents bfcache from replaying the session-authenticated state
+    # when the user presses the browser Back button after logging out.
+    resp = make_response(redirect(url_for('main.home')))
+    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
+    return resp

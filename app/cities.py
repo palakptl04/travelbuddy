@@ -1,11 +1,17 @@
 GUJARAT_CITIES = [
-    'Ahmedabad', 'Surat', 'Vadodara', 'Rajkot', 'Bhavnagar', 'Jamnagar',
-    'Gandhinagar', 'Junagadh', 'Anand', 'Bharuch', 'Nadiad', 'Mehsana',
-    'Morbi', 'Surendranagar', 'Navsari', 'Valsad', 'Vapi', 'Porbandar',
-    'Godhra', 'Patan', 'Palanpur', 'Dwarka', 'Veraval', 'Bhuj', 'Gandhidham',
-    'Ankleshwar', 'Dahod',
+    'Ahmedabad',
+    'Surat',
+    'Vadodara',
+    'Rajkot',
+    'Gandhinagar',
+    'Bhavnagar',
+    'Jamnagar',
+    'Junagadh',
+    'Anand',
+    'Bharuch',
+    'Valsad',
+    'Bhuj',
 ]
-
 NEARBY_CITIES = [
     'Mumbai', 'Pune', 'Udaipur', 'Mount Abu', 'Indore', 'Diu', 'Daman',
 ]

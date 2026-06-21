@@ -9,6 +9,27 @@ class Config:
     WTF_CSRF_ENABLED = True
     TESTING = False
 
+    # JWT settings
+    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', SECRET_KEY)
+    JWT_EXPIRY_SECONDS = int(os.environ.get('JWT_EXPIRY_SECONDS', 3600))  # 1 hour default
+
+    # Flasgger / Swagger UI settings
+    SWAGGER = {
+        'title': 'TravelBuddy REST API',
+        'version': '1.0',
+        'description': (
+            'Full REST API for TravelBuddy.\n\n'
+            '**Authentication** (choose one per request):\n'
+            '- **Bearer JWT**: `Authorization: Bearer <token>` — obtain via `POST /api/v1/auth/token`\n'
+            '- **API Key**: `X-API-Key: <key>` — generate via `POST /api/v1/me/api-key`\n'
+            '- **Session cookie**: same cookie as the web UI (for browser clients)'
+        ),
+        'uiversion': 3,
+        'openapi': '2.0',
+        'termsOfService': '',
+        'specs_route': '/api/docs/',
+    }
+
 
 class TestingConfig(Config):
     TESTING = True
@@ -20,4 +41,6 @@ class TestingConfig(Config):
         'poolclass': StaticPool,
     }
     WTF_CSRF_ENABLED = False
-    SECRET_KEY = 'test-secret-key'
+    SECRET_KEY = 'test-secret-key-for-testing-only'
+    JWT_SECRET_KEY = 'test-jwt-secret-key-long-enough-for-hs256'
+    JWT_EXPIRY_SECONDS = 3600

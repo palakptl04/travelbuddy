@@ -1,3 +1,5 @@
+import secrets
+
 from app.extensions import db, login_manager
 from flask_login import UserMixin
 from datetime import datetime, timezone, date as _date, timedelta
@@ -41,6 +43,8 @@ class User(db.Model, UserMixin):
     interests      = db.Column(db.String(255), default='')
     phone          = db.Column(db.String(20), default='')
     created_at     = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    # REST API key (nullable — only created on demand)
+    api_key        = db.Column(db.String(64), unique=True, nullable=True, index=True)
 
     def interests_list(self):
         return [i.strip() for i in self.interests.split(',') if i.strip()] if self.interests else []
@@ -66,6 +70,11 @@ class User(db.Model, UserMixin):
 
     def set_phone(self, value: str):
         self.phone = _encrypt_contact(value)
+
+    def generate_api_key(self) -> str:
+        """Generate (or rotate) this user's API key. Caller must commit."""
+        self.api_key = secrets.token_hex(32)  # 64-char hex string
+        return self.api_key
 
     # ------------------------------------------------------------------ #
     # Dashboard helpers                                                    #
