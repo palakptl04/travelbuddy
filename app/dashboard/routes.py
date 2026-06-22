@@ -6,6 +6,7 @@ from flask_login import current_user, login_required
 from app.dashboard import dashboard
 from app.extensions import db
 from app.models import Expense, Trip, TripMember
+from app.conflict_utils import do_accept_request
 
 
 @dashboard.route('/dashboard')
@@ -46,12 +47,26 @@ def index():
 @login_required
 def accept_request(member_id):
     member = db.get_or_404(TripMember, member_id)
-    if member.trip.owner_id != current_user.id:
+    trip = member.trip
+
+    if trip.owner_id != current_user.id:
         flash('Not authorised.', 'error')
         return redirect(url_for('dashboard.index'))
-    member.status = 'accepted'
-    db.session.commit()
-    flash(f'{member.user.name} has been added to {member.trip.title}.', 'success')
+
+    if not trip.can_join():
+        flash('Joining is closed for this trip. No new members can be accepted.', 'error')
+        return redirect(url_for('dashboard.index'))
+
+    if trip.is_full():
+        flash('Trip is already full. Cannot accept more members.', 'error')
+        return redirect(url_for('dashboard.index'))
+
+    success, error_msg = do_accept_request(member, trip)
+    if success:
+        flash(f'{member.user.name} has been added to {trip.title}.', 'success')
+    else:
+        flash(error_msg, 'error')
+
     return redirect(url_for('dashboard.index'))
 
 

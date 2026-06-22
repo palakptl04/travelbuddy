@@ -589,19 +589,81 @@ class TripMember(db.Model):
         db.UniqueConstraint('trip_id', 'user_id', name='uq_trip_member'),
     )
 
+    # Statuses:
+    #   pending   — request sent, awaiting owner action
+    #   accepted  — owner accepted (member is part of the trip)
+    #   declined  — owner rejected the request
+    #   cancelled — user cancelled their own pending request
+    #   left      — accepted member voluntarily left before deadline
+    STATUS_PENDING   = 'pending'
+    STATUS_ACCEPTED  = 'accepted'
+    STATUS_DECLINED  = 'declined'
+    STATUS_CANCELLED = 'cancelled'
+    STATUS_LEFT      = 'left'
+
+    # Statuses where the user is still actively involved
+    ACTIVE_STATUSES = {'pending', 'accepted'}
+    # Statuses where the row can be "reactivated" for a new request
+    REAPPLY_STATUSES = {'declined', 'cancelled', 'left'}
+
     id            = db.Column(db.Integer, primary_key=True)
     trip_id       = db.Column(db.Integer, db.ForeignKey('trips.id'), nullable=False)
     user_id       = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    status        = db.Column(db.String(20), default='pending')  # pending, accepted, declined
+    status        = db.Column(db.String(20), default='pending')  # pending, accepted, declined, cancelled, left
     is_confirmed  = db.Column(db.Boolean, default=False, nullable=False)
     confirmed_at  = db.Column(db.DateTime, nullable=True)
     joined_at     = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    cancel_reason = db.Column(db.String(100), nullable=True)  # e.g. 'trip conflict'
+    left_at       = db.Column(db.DateTime, nullable=True)     # set when status→left
 
     trip = db.relationship('Trip', back_populates='members')
     user = db.relationship('User', back_populates='memberships')
 
     def __repr__(self):
         return f'<TripMember trip={self.trip_id} user={self.user_id} status={self.status}>'
+
+    # ------------------------------------------------------------------ #
+    # Status transition helpers                                            #
+    # ------------------------------------------------------------------ #
+
+    def cancel(self, reason: str = None):
+        """User cancels their own pending request (PENDING → CANCELLED)."""
+        self.status = self.STATUS_CANCELLED
+        self.cancel_reason = reason
+
+    def leave(self):
+        """Accepted member voluntarily leaves (ACCEPTED → LEFT)."""
+        self.status = self.STATUS_LEFT
+        self.left_at = datetime.now(timezone.utc)
+
+    def reapply(self):
+        """Reuse this row for a new pending request after CANCELLED/DECLINED/LEFT."""
+        self.status = self.STATUS_PENDING
+        self.cancel_reason = None
+        self.left_at = None
+        self.is_confirmed = False
+        self.confirmed_at = None
+        self.joined_at = datetime.now(timezone.utc)
+
+    @property
+    def is_active(self) -> bool:
+        """True if the membership is in an active state (pending or accepted)."""
+        return self.status in self.ACTIVE_STATUSES
+
+    @property
+    def can_reapply(self) -> bool:
+        """True if the row can be reused for a fresh request."""
+        return self.status in self.REAPPLY_STATUSES
+
+    @property
+    def status_label(self) -> str:
+        return {
+            'pending':   'Pending',
+            'accepted':  'Confirmed',
+            'declined':  'Rejected',
+            'cancelled': 'Cancelled',
+            'left':      'Left',
+        }.get(self.status, self.status.capitalize() if self.status else 'Unknown')
 
 
 # ---------------------------------------------------------------------------

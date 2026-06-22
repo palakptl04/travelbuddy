@@ -961,7 +961,9 @@ class TestLeaveLogic:
         assert resp.status_code == 200
         with app.app_context():
             still_member = TripMember.query.filter_by(trip_id=trip_id).first()
-            assert still_member is None
+            # Option A: row is preserved with status='left', not deleted
+            assert still_member is not None
+            assert still_member.status == 'left'
 
 
 # ---------------------------------------------------------------------------

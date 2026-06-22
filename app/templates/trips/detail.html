@@ -116,6 +116,14 @@
     color: var(--green-dark); background: var(--green-light);
     padding: 2px 9px; border-radius: 100px; margin: 2px 4px 0 0;
   }
+  .btn-cancel-req {
+    font-size: 13px; font-weight: 600; color: #d97706; padding: 9px 16px; border-radius: 9px;
+    border: 1.5px solid #fde68a; background: #fffbeb; cursor: pointer; font-family: inherit;
+    transition: background 0.15s; display: inline-flex; align-items: center; gap: 5px;
+  }
+  .btn-cancel-req:hover { background: #fef3c7; }
+
+  /* Member-request action buttons */
   .req-actions { display: flex; gap: 6px; flex-shrink: 0; }
   .btn-accept {
     width: 28px; height: 28px; border-radius: 8px; background: #d1fae5; border: none; cursor: pointer;
@@ -343,20 +351,49 @@
           </form>
           {% endif %}
         {% elif is_member %}
-          {# Accepted member: show Leave Trip only while joining is still open (deadline not passed) #}
+          {# Accepted member: show Leave Trip while deadline not passed #}
           {% if trip.can_leave() %}
           <form method="POST" action="{{ url_for('trips.leave', trip_id=trip.id) }}"
-                onsubmit="return confirm('Leave this trip?');">
+                onsubmit="return confirm('Leave this trip?{% if trip.is_confirmed() %} You are leaving a confirmed trip \u2014 your slot will be freed.{% endif %}');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn-danger">🚪 Leave Trip</button>
           </form>
+          {% elif not trip.can_leave() and not trip.is_active() and not trip.is_cancelled() and not trip.is_completed() %}
+            <span class="badge badge-join-closed" title="Join deadline has passed — leaving is no longer possible">🔒 Leave Closed</span>
           {% endif %}
         {% else %}
-          {# Non-member view #}
+          {# Non-member / cancelled / left view #}
           {% if membership and membership.status == 'pending' %}
-            <button class="btn-secondary" disabled>Request Pending</button>
+            <button class="btn-secondary" disabled style="cursor:default;">⏳ Request Pending</button>
+            <form method="POST" action="{{ url_for('trips.cancel_request', trip_id=trip.id) }}"
+                  onsubmit="return confirm('Cancel your buddy request for this trip?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn-cancel-req">✕ Cancel Request</button>
+            </form>
           {% elif membership and membership.status == 'declined' %}
-            <button class="btn-secondary" disabled>Request Declined</button>
+            <button class="btn-secondary" disabled style="cursor:default;">❌ Request Rejected</button>
+            {% if trip.can_join() %}
+            <form method="POST" action="{{ url_for('trips.send_request', trip_id=trip.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn-primary">🔄 Re-apply</button>
+            </form>
+            {% endif %}
+          {% elif membership and membership.status == 'cancelled' %}
+            <button class="btn-secondary" disabled style="cursor:default;">🚫 Request Cancelled</button>
+            {% if trip.can_join() %}
+            <form method="POST" action="{{ url_for('trips.send_request', trip_id=trip.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn-primary">🔄 Re-apply</button>
+            </form>
+            {% endif %}
+          {% elif membership and membership.status == 'left' %}
+            <button class="btn-secondary" disabled style="cursor:default;">🚪 You Left</button>
+            {% if trip.can_join() %}
+            <form method="POST" action="{{ url_for('trips.send_request', trip_id=trip.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn-primary">🔄 Re-apply</button>
+            </form>
+            {% endif %}
           {% elif trip.can_join() %}
             <form method="POST" action="{{ url_for('trips.send_request', trip_id=trip.id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

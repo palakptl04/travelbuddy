@@ -1,9 +1,10 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app.cities import DESTINATION_CHOICES
+from app.conflict_utils import do_accept_request
 from app.expenses.forms import ExpenseForm
 from app.extensions import db
 from app.models import ContactAccessLog, Expense, Trip, TripMember
@@ -329,14 +330,51 @@ def send_request(trip_id):
         return redirect(url_for('trips.detail', trip_id=trip.id))
 
     existing = TripMember.query.filter_by(trip_id=trip.id, user_id=current_user.id).first()
-    if existing:
-        flash('You have already sent a request for this trip.', 'error')
-        return redirect(url_for('trips.detail', trip_id=trip.id))
 
+    if existing:
+        if existing.status in TripMember.ACTIVE_STATUSES:
+            # Already pending or accepted — cannot apply again
+            if existing.status == TripMember.STATUS_PENDING:
+                flash('You have already sent a request for this trip.', 'error')
+            else:
+                flash('You are already a member of this trip.', 'error')
+            return redirect(url_for('trips.detail', trip_id=trip.id))
+        elif existing.can_reapply:
+            # Option A: reuse the existing row (preserves history)
+            existing.reapply()
+            db.session.commit()
+            flash('Buddy request sent! The trip creator will review it.', 'success')
+            return redirect(url_for('trips.detail', trip_id=trip.id))
+
+    # No existing row — create fresh
     member = TripMember(trip_id=trip.id, user_id=current_user.id, status='pending')
     db.session.add(member)
     db.session.commit()
     flash('Buddy request sent! The trip creator will review it.', 'success')
+    return redirect(url_for('trips.detail', trip_id=trip.id))
+
+
+@trips.route('/trips/<int:trip_id>/request/cancel', methods=['POST'])
+@login_required
+def cancel_request(trip_id):
+    """User cancels their own PENDING buddy request (PENDING → CANCELLED)."""
+    trip = db.get_or_404(Trip, trip_id)
+
+    membership = TripMember.query.filter_by(
+        trip_id=trip.id, user_id=current_user.id
+    ).first()
+
+    if not membership:
+        flash('No request found for this trip.', 'error')
+        return redirect(url_for('trips.detail', trip_id=trip.id))
+
+    if membership.status != TripMember.STATUS_PENDING:
+        flash('Only pending requests can be cancelled.', 'error')
+        return redirect(url_for('trips.detail', trip_id=trip.id))
+
+    membership.cancel()
+    db.session.commit()
+    flash('Your buddy request has been cancelled.', 'success')
     return redirect(url_for('trips.detail', trip_id=trip.id))
 
 
@@ -350,6 +388,8 @@ def accept_request(trip_id, member_id):
         flash('Not authorised.', 'error')
         return redirect(url_for('trips.detail', trip_id=trip_id))
 
+    # Note: can_join / is_full checks are also performed inside do_accept_request
+    # via status re-check, but we do an early check here for a nicer UX message.
     if not trip.can_join():
         flash('Joining is closed for this trip. No new members can be accepted.', 'error')
         return redirect(url_for('trips.detail', trip_id=trip_id))
@@ -358,9 +398,11 @@ def accept_request(trip_id, member_id):
         flash('Trip is already full. Cannot accept more members.', 'error')
         return redirect(url_for('trips.detail', trip_id=trip_id))
 
-    member.status = 'accepted'
-    db.session.commit()
-    flash(f'{member.user.name} has been added to {trip.title}.', 'success')
+    success, error_msg = do_accept_request(member, trip)
+    if success:
+        flash(f'{member.user.name} has been added to {trip.title}.', 'success')
+    else:
+        flash(error_msg, 'error')
     return redirect(url_for('trips.detail', trip_id=trip_id))
 
 
@@ -430,7 +472,8 @@ def leave(trip_id):
         )
         return redirect(url_for('trips.detail', trip_id=trip_id))
 
-    db.session.delete(membership)
+    # Mark as LEFT (preserves row history; slot freed as member_count drops)
+    membership.leave()
     db.session.commit()
     flash(f'You have left "{trip.title}".', 'success')
     return redirect(url_for('trips.index'))

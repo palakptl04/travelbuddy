@@ -89,6 +89,12 @@
   .badge-open        { background: #d1fae5; color: #065f46; }
   .badge-full        { background: #fee2e2; color: #991b1b; }
   .badge-join-closed { background: #fee2e2; color: #991b1b; }
+  /* Membership status badges */
+  .badge-member-pending    { background: #fef3c7; color: #92400e; }
+  .badge-member-confirmed  { background: #d1fae5; color: #065f46; }
+  .badge-member-rejected   { background: #fee2e2; color: #991b1b; }
+  .badge-member-cancelled  { background: #f3f4f6; color: #6b7280; }
+  .badge-member-left       { background: #f3f4f6; color: #6b7280; }
 
   .btn-small {
     font-size: 12px; font-weight: 700; padding: 7px 14px; border-radius: 8px;
@@ -198,6 +204,22 @@
               {% endif %}
               {% if trip.owner_id == current_user.id %}
                 <span class="badge badge-owner">Owner</span>
+              {% else %}
+                {# Show the user's membership status for non-owner trips #}
+                {% set my_membership = trip.members.filter_by(user_id=current_user.id).first() %}
+                {% if my_membership %}
+                  {% if my_membership.status == 'accepted' %}
+                    <span class="badge badge-member-confirmed">✓ Joined</span>
+                  {% elif my_membership.status == 'pending' %}
+                    <span class="badge badge-member-pending">⏳ Pending</span>
+                  {% elif my_membership.status == 'declined' %}
+                    <span class="badge badge-member-rejected">✕ Rejected</span>
+                  {% elif my_membership.status == 'cancelled' %}
+                    <span class="badge badge-member-cancelled">✕ Cancelled</span>
+                  {% elif my_membership.status == 'left' %}
+                    <span class="badge badge-member-left">🚪 Left</span>
+                  {% endif %}
+                {% endif %}
               {% endif %}
               <a href="{{ url_for('trips.detail', trip_id=trip.id) }}" class="btn-small btn-view">View →</a>
             </div>
@@ -281,7 +303,7 @@
                 {% if trip.id in accepted_ids %}
                   <span class="badge badge-owner">Joined</span>
                 {% elif trip.id in pending_ids %}
-                  <button class="btn-small btn-pending" disabled>Request Sent</button>
+                  <button class="btn-small btn-pending" disabled>⏳ Request Sent</button>
                 {% elif not trip.joining_closed and not trip.is_full() %}
                   <form method="POST" action="{{ url_for('trips.send_request', trip_id=trip.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
