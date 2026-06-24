@@ -292,7 +292,11 @@ class TestApiTripDetail:
         client, _ = auth_client
         assert client.get('/api/v1/trips/99999').status_code == 404
 
-    def test_returns_403_for_non_member(self, auth_client, app):
+    def test_returns_404_for_non_member(self, auth_client, app):
+        """HIGH-3 fix: GET /api/v1/trips/<id> returns 404 (not 403) when the
+        caller has no access to the trip.  Returning 403 vs 404 would reveal
+        the existence of private trip IDs to enumerating attackers.  The
+        intentional 404 prevents trip-ID enumeration via status-code oracle."""
         with app.app_context():
             from app.extensions import bcrypt as _bcrypt
             pw = _bcrypt.generate_password_hash('pass').decode('utf-8')
@@ -311,7 +315,8 @@ class TestApiTripDetail:
             tid = trip.id
 
         client, _ = auth_client
-        assert client.get(f'/api/v1/trips/{tid}').status_code == 403
+        # Expect 404, not 403 — trip existence must not be revealed to non-members
+        assert client.get(f'/api/v1/trips/{tid}').status_code == 404
 
 
 # ---------------------------------------------------------------------------
