@@ -149,18 +149,23 @@ def detail(trip_id):
 
     trip = db.get_or_404(Trip, trip_id)
 
-    # ── Status auto-transitions ──────────────────────────────────────────────
-    status_changed = False
-    if trip.maybe_transition_to_awaiting():
-        status_changed = True
-    if trip.refresh_status():
-        status_changed = True
-    if status_changed:
-        db.session.commit()
-
     is_owner = trip.owner_id == current_user.id
     membership = TripMember.query.filter_by(trip_id=trip.id, user_id=current_user.id).first()
     is_member = is_owner or (membership is not None and membership.status == 'accepted')
+
+    # ── Status auto-transitions ──────────────────────────────────────────────
+    # HIGH-2: Only run DB-writing status transitions when the viewer is the
+    # owner or an accepted member.  A random authenticated user browsing a
+    # trip they don't belong to must not be able to force business-logic
+    # state changes (e.g. advancing a trip to AWAITING_CONFIRMATION).
+    if is_member:
+        status_changed = False
+        if trip.maybe_transition_to_awaiting():
+            status_changed = True
+        if trip.refresh_status():
+            status_changed = True
+        if status_changed:
+            db.session.commit()
 
     pending_requests = []
     if is_owner:

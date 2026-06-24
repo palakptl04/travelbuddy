@@ -73,7 +73,14 @@ def delete(trip_id, expense_id):
         flash('Invalid request.', 'error')
         return redirect(url_for('trips.detail', trip_id=trip.id))
 
+    # HIGH-1: Verify active membership before allowing delete.
+    # An ex-member (left/declined) must not be able to delete expenses
+    # they originally paid after leaving the trip.
     is_owner, is_member = _get_membership(trip)
+    if not is_member:
+        flash('Only current trip members can delete expenses.', 'error')
+        return redirect(url_for('trips.detail', trip_id=trip.id))
+
     if expense.paid_by_id != current_user.id and not is_owner:
         flash('Only the payer or trip owner can delete this expense.', 'error')
         return redirect(url_for('trips.detail', trip_id=trip.id))
@@ -106,6 +113,14 @@ def mark_settled(trip_id):
     # Only the debtor (payer) can mark their own debt settled
     if payer_id != current_user.id:
         flash('You can only mark your own debts as settled.', 'error')
+        return redirect(url_for('trips.detail', trip_id=trip.id))
+
+    # MED-1: Validate payee_id is an actual current participant of this trip.
+    # Without this check an attacker could create bogus Settlement rows
+    # pointing to arbitrary user IDs.
+    valid_member_ids = {u.id for u in trip.all_member_users()}
+    if payee_id not in valid_member_ids:
+        flash('Invalid payee: must be a current trip member.', 'error')
         return redirect(url_for('trips.detail', trip_id=trip.id))
 
     # Find or create the settlement record

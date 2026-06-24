@@ -141,6 +141,19 @@ def _assert_trip_access(trip: Trip, user: User):
         abort(403)
 
 
+def _assert_active_trip_membership(trip: Trip, user: User):
+    """Abort 403 if the user is not currently an active member (owner or
+    accepted member) of the trip.  Used for expense write operations to
+    prevent ex-members (status='left'/'declined') from mutating expenses
+    they originally paid."""
+    is_owner = trip.owner_id == user.id
+    if is_owner:
+        return  # owners always retain full access
+    membership = TripMember.query.filter_by(trip_id=trip.id, user_id=user.id).first()
+    if membership is None or membership.status != 'accepted':
+        abort(403)
+
+
 # ===========================================================================
 # Auth — token endpoint
 # ===========================================================================
@@ -460,8 +473,15 @@ def get_trip(trip_id: int):
         description: Trip not found
     """
     user = require_api_auth()
-    trip = db.get_or_404(Trip, trip_id)
-    _assert_trip_access(trip, user)
+    # HIGH-3: Return 404 for both non-existent and inaccessible trips so
+    # that attackers cannot enumerate private trip IDs via 403 vs 404.
+    trip = db.session.get(Trip, trip_id)
+    if trip is None:
+        abort(404)
+    is_owner = trip.owner_id == user.id
+    membership = TripMember.query.filter_by(trip_id=trip.id, user_id=user.id).first()
+    if not (is_owner or (membership is not None and membership.status == 'accepted')):
+        abort(404)  # intentional 404 — do not reveal trip existence
 
     members = (
         [{'id': trip.owner.id, 'name': trip.owner.name, 'role': 'owner'}]
@@ -981,6 +1001,11 @@ def update_expense(expense_id: int):
     user = require_api_auth()
     expense = db.get_or_404(Expense, expense_id)
 
+    # CRIT-1 / HIGH-1: Verify the caller is still an active member of the
+    # trip this expense belongs to.  An ex-member who left or was declined
+    # must not be able to mutate expenses they originally paid.
+    _assert_active_trip_membership(expense.trip, user)
+
     # Only the payer or the trip owner may update
     if expense.paid_by_id != user.id and expense.trip.owner_id != user.id:
         abort(403)
@@ -1043,6 +1068,9 @@ def patch_expense(expense_id: int):
     user = require_api_auth()
     expense = db.get_or_404(Expense, expense_id)
 
+    # HIGH-1: Verify active trip membership before allowing PATCH.
+    _assert_active_trip_membership(expense.trip, user)
+
     if expense.paid_by_id != user.id and expense.trip.owner_id != user.id:
         abort(403)
 
@@ -1091,6 +1119,9 @@ def delete_expense(expense_id: int):
     """
     user = require_api_auth()
     expense = db.get_or_404(Expense, expense_id)
+
+    # HIGH-1: Verify active trip membership before allowing DELETE.
+    _assert_active_trip_membership(expense.trip, user)
 
     if expense.paid_by_id != user.id and expense.trip.owner_id != user.id:
         abort(403)
