@@ -4,7 +4,6 @@ conflict_utils.py — shared helpers for request conflict management.
 Imported by both trips/routes.py and dashboard/routes.py to avoid
 circular imports.
 """
-from datetime import datetime, timezone
 
 from app.extensions import db
 from app.models import Trip, TripMember

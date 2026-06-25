@@ -3,10 +3,10 @@ from datetime import date
 from flask import flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
 
+from app.conflict_utils import do_accept_request
 from app.dashboard import dashboard
 from app.extensions import db
 from app.models import Expense, Trip, TripMember
-from app.conflict_utils import do_accept_request
 
 
 @dashboard.route('/dashboard')
